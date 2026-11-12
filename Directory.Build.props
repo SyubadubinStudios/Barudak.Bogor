@@ -1,0 +1,17 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TieredPGO>true</TieredPGO>
+    <Product>Barudak Bogor</Product>
+    <Company>Syubadubin Studios</Company>
+    <Authors>Ariana Mischa Fadhila</Authors>
+    <Copyright>Dibuat oleh Ariana Mischa Fadhila dari Syubadubin Studios</Copyright>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+</Project>

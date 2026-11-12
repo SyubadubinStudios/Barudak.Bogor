@@ -1,0 +1,112 @@
+name: Release
+
+# Pushing a tag like v0.1.0 builds the installers and publishes a GitHub release.
+# "Run workflow" builds the same installers as downloadable artifacts without releasing.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to stamp on the installers
+        default: 0.0.0
+
+permissions:
+  contents: write
+
+env:
+  PROJECT: src/BarudakBogor.Game/BarudakBogor.Game.csproj
+
+jobs:
+  package:
+    name: ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-latest }
+          - { rid: osx-arm64, os: macos-latest }
+          - { rid: osx-x64, os: macos-latest }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Work out the version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ inputs.version || '0.0.0' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Test the simulation
+        if: matrix.rid == 'linux-x64'
+        run: dotnet test tests/BarudakBogor.Core.Tests -c Release
+
+      # Self-contained: players do not need .NET installed.
+      - name: Publish
+        shell: bash
+        run: >
+          dotnet publish "$PROJECT" -c Release -r ${{ matrix.rid }} --self-contained true
+          -p:Version=${{ steps.version.outputs.value }} -p:DebugType=none
+          -o dist/${{ matrix.rid }}
+
+      - name: Windows installer and portable zip
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
+          New-Item -ItemType Directory -Force dist/out | Out-Null
+          & $iscc "/DAppVersion=$version" "/DSourceDir=$PWD\dist\win-x64" "/DOutputDir=$PWD\dist\out" packaging\windows\installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path dist/win-x64/* -DestinationPath "dist/out/BarudakBogor-$version-win-x64-portable.zip"
+
+      - name: Linux .deb and .tar.gz
+        if: matrix.rid == 'linux-x64'
+        run: bash packaging/linux/build-deb.sh "${{ steps.version.outputs.value }}" dist/linux-x64 dist/out
+
+      - name: macOS .dmg
+        if: startsWith(matrix.rid, 'osx')
+        run: bash packaging/macos/build-dmg.sh "${{ steps.version.outputs.value }}" "${{ matrix.rid }}" "dist/${{ matrix.rid }}" dist/out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BarudakBogor-${{ matrix.rid }}
+          path: dist/out/*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: installers/*
+          generate_release_notes: true
+          body: |
+            **Barudak Bogor** — Hujanna Asli, Petualanganna Teu Aya Tungtungna.
+
+            | Platform | File |
+            |---|---|
+            | Windows 10/11 (64-bit) | `…-win-x64-setup.exe` (installer) or `…-win-x64-portable.zip` |
+            | Linux (64-bit, Vulkan) | `…-linux-x64.deb` or `…-linux-x64.tar.gz` |
+            | macOS Apple Silicon | `…-osx-arm64.dmg` |
+            | macOS Intel | `…-osx-x64.dmg` |
+
+            The macOS apps are not notarised: right-click the app and choose Open the first time.
+
+            Dibuat oleh Ariana Mischa Fadhila dari Syubadubin Studios.

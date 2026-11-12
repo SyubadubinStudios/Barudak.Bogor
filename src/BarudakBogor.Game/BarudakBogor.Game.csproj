@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>BarudakBogor</AssemblyName>
+    <RootNamespace>BarudakBogor.Game</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\packaging\windows\BarudakBogor.ico</ApplicationIcon>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ServerGarbageCollector>false</ServerGarbageCollector>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <TieredCompilation>true</TieredCompilation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="System.IO.Hashing" Version="11.0.0" />
+    <PackageReference Include="ThreeNet.Avalonia" Version="0.12.1" />
+    <PackageReference Include="ThreeNet.Native" Version="0.12.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\Fonts\*.ttf" />
+    <!-- 2D art generated with Rodin (Nano Banana 2): key art, credits scroll, portraits, icon. -->
+    <AvaloniaResource Include="..\..\assets\art\*.jpg;..\..\assets\art\icon_256.png" Link="Assets\Art\%(Filename)%(Extension)" />
+    <None Include="..\..\assets\art\billboard_*.jpg" Link="Assets\Art\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Models are authored by the Blender scripts in assets/blender and shared with the docs. -->
+    <None Include="..\..\assets\models\*.glb" Link="Assets\Models\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BarudakBogor.Core\BarudakBogor.Core.csproj" />
+  </ItemGroup>
+
+</Project>

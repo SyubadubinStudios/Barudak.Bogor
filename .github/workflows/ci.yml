@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      # The simulation has no rendering dependency, so its tests run without a GPU.
+      - name: Test the simulation
+        run: dotnet test tests/BarudakBogor.Core.Tests -c Release
+      - name: Build the game
+        run: dotnet build src/BarudakBogor.Game -c Release

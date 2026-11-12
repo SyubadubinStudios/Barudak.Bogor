@@ -1,0 +1,319 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:tn="clr-namespace:ThreeNet.Avalonia;assembly=ThreeNet.Avalonia"
+        xmlns:v="clr-namespace:BarudakBogor.Game.Views"
+        x:Class="BarudakBogor.Game.Views.MainWindow"
+        Title="Barudak Bogor"
+        Width="1280" Height="720" MinWidth="960" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Asphalt}">
+
+  <Grid>
+    <tn:ThreeNetView x:Name="Viewport" Focusable="True" />
+    <!-- Catches mouse look without stealing clicks from the panels above it. -->
+    <Border x:Name="InputLayer" Background="Transparent" />
+
+    <!-- ============================== HUD ============================== -->
+    <Grid x:Name="Hud" IsVisible="False" IsHitTestVisible="False" Margin="22">
+
+      <!-- Trayek board: where you are, and what the mission wants. -->
+      <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Spacing="8" MaxWidth="520">
+        <Border CornerRadius="6" ClipToBounds="True" Background="{StaticResource AsphaltGlass}">
+          <Grid ColumnDefinitions="Auto,*">
+            <Border Background="{StaticResource Angkot}" Padding="12,6,12,4" MinWidth="64">
+              <StackPanel>
+                <TextBlock x:Name="TrayekLabel" Classes="label" Text="TRAYEK" FontSize="10" Foreground="{StaticResource Cream}" HorizontalAlignment="Center" />
+                <TextBlock x:Name="TrayekNumber" Classes="display" Text="00" FontSize="26" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Border>
+            <StackPanel Grid.Column="1" Margin="12,7,16,7" VerticalAlignment="Center">
+              <TextBlock x:Name="LocationText" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+              <TextBlock x:Name="ClockText" Classes="label" />
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <Border x:Name="ObjectivePanel" Classes="panel" BorderBrush="{StaticResource Kujang}" BorderThickness="4,0,0,0" IsVisible="False">
+          <StackPanel Spacing="2">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock x:Name="MissionTitle" Classes="display" FontSize="15" Foreground="{StaticResource Kujang}" />
+              <TextBlock x:Name="MissionTimer" Grid.Column="1" Classes="display" FontSize="15" Margin="16,0,0,0" />
+            </Grid>
+            <TextBlock x:Name="ObjectiveText" Classes="body" FontSize="20" />
+            <TextBlock x:Name="ObjectiveDistance" Classes="label" />
+          </StackPanel>
+        </Border>
+
+        <Border x:Name="JobPanel" Classes="panel" BorderBrush="{StaticResource Rain}" BorderThickness="4,0,0,0" IsVisible="False">
+          <StackPanel Spacing="2">
+            <TextBlock x:Name="JobTitle" Classes="display" FontSize="14" Foreground="{StaticResource Rain}" />
+            <TextBlock x:Name="JobText" Classes="body" FontSize="19" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <!-- Money and weather. -->
+      <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Spacing="8">
+        <Border Classes="panel" HorizontalAlignment="Right" Padding="16,8,16,6">
+          <TextBlock x:Name="MoneyText" Classes="display" FontSize="24" Foreground="{StaticResource Kujang}" />
+        </Border>
+        <Border Classes="panel" HorizontalAlignment="Right" Padding="14,6">
+          <TextBlock x:Name="WeatherText" FontSize="18" FontWeight="SemiBold" />
+        </Border>
+        <TextBlock x:Name="MoneyDelta" Classes="display" FontSize="18" HorizontalAlignment="Right" Opacity="0" />
+      </StackPanel>
+
+      <!-- Mini map. -->
+      <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Width="204" Height="204" CornerRadius="102"
+              BorderBrush="{StaticResource Angkot}" BorderThickness="4" ClipToBounds="True" Background="{StaticResource Asphalt}">
+        <v:MapControl x:Name="MiniMap" />
+      </Border>
+
+      <!-- Speed, or stamina on foot. -->
+      <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Spacing="6">
+        <Border x:Name="SpeedPanel" Classes="panel" HorizontalAlignment="Right" Padding="18,6,18,8" IsVisible="False">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock x:Name="SpeedText" Classes="display" FontSize="40" Text="0" VerticalAlignment="Bottom" />
+            <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,7">
+              <TextBlock x:Name="VehicleName" Classes="label" />
+              <TextBlock x:Name="SpeedUnit" Classes="label" Text="KM/JAM" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Border x:Name="StaminaPanel" Classes="panel" HorizontalAlignment="Right" Width="210">
+          <StackPanel Spacing="5">
+            <TextBlock x:Name="StaminaLabel" Classes="label" />
+            <ProgressBar x:Name="StaminaBar" Classes="gauge" Minimum="0" Maximum="1" MinWidth="0" />
+          </StackPanel>
+        </Border>
+        <TextBlock x:Name="StatsText" Classes="label" HorizontalAlignment="Right" FontSize="12" />
+      </StackPanel>
+
+      <!-- Prompt and toasts. -->
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Bottom" Spacing="8" Margin="0,0,0,8">
+        <StackPanel x:Name="ToastStack" Spacing="6" HorizontalAlignment="Center" />
+        <Border x:Name="PromptPanel" Classes="panel" HorizontalAlignment="Center" Padding="8,6,16,6" IsVisible="False">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Border Background="{StaticResource Cream}" CornerRadius="4" Padding="9,2,9,0">
+              <TextBlock Classes="display" Text="E" FontSize="17" Foreground="{StaticResource Asphalt}" />
+            </Border>
+            <TextBlock x:Name="PromptText" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <!-- Mission result banner. -->
+      <Border x:Name="Banner" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,96,0,0" IsVisible="False"
+              Background="{StaticResource Angkot}" CornerRadius="6" Padding="34,14,34,12"
+              BorderBrush="{StaticResource AngkotDeep}" BorderThickness="0,0,0,5">
+        <StackPanel Spacing="2">
+          <TextBlock x:Name="BannerLabel" Classes="label" Foreground="{StaticResource Cream}" HorizontalAlignment="Center" />
+          <TextBlock x:Name="BannerTitle" Classes="display" FontSize="34" HorizontalAlignment="Center" />
+          <TextBlock x:Name="BannerDetail" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- ============================== Dialogue ============================== -->
+    <Border x:Name="DialogPanel" IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,46"
+            Width="780" Background="{StaticResource AsphaltGlass}" CornerRadius="6" BorderBrush="{StaticResource Kujang}" BorderThickness="0,4,0,0" ClipToBounds="True">
+      <Grid ColumnDefinitions="Auto,*">
+        <Border x:Name="DialogPortraitFrame" Width="150" Height="150" VerticalAlignment="Top" ClipToBounds="True" IsVisible="False">
+          <Image x:Name="DialogPortrait" Width="150" Height="150" Stretch="UniformToFill" />
+        </Border>
+        <StackPanel Grid.Column="1" Spacing="8" Margin="24,16,24,16">
+          <TextBlock x:Name="DialogSpeaker" Classes="display" FontSize="16" Foreground="{StaticResource Kujang}" />
+          <TextBlock x:Name="DialogText" Classes="body" FontSize="22" LineHeight="29" />
+          <StackPanel x:Name="DialogChoices" Spacing="6" Margin="0,6,0,0" />
+          <TextBlock x:Name="DialogHint" Classes="label" HorizontalAlignment="Right" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ============================== Mini games ============================== -->
+    <Border x:Name="ActivityPanel" IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,40"
+            Width="560" Background="{StaticResource AsphaltGlass}" CornerRadius="6" BorderBrush="{StaticResource Rain}" BorderThickness="0,4,0,0" Padding="22,14,22,16">
+      <StackPanel Spacing="8">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock x:Name="ActivityTitle" Classes="display" FontSize="18" Foreground="{StaticResource Rain}" />
+          <TextBlock x:Name="ActivityScore" Grid.Column="1" Classes="display" FontSize="18" />
+        </Grid>
+        <v:ActivityControl x:Name="ActivityView" Height="170" />
+        <TextBlock x:Name="ActivityHint" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <!-- ============================== Title ============================== -->
+    <Grid x:Name="TitleScreen" IsVisible="False">
+      <Grid.Background>
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+          <GradientStop Offset="0" Color="#F212181C" />
+          <GradientStop Offset="0.42" Color="#B312181C" />
+          <GradientStop Offset="1" Color="#2612181C" />
+        </LinearGradientBrush>
+      </Grid.Background>
+      <Grid ColumnDefinitions="Auto,*" Margin="56,44,40,30">
+        <StackPanel Width="400" VerticalAlignment="Center" Spacing="0">
+          <TextBlock x:Name="TitleEyebrow" Classes="label" Foreground="{StaticResource Kujang}" />
+          <TextBlock Classes="display" Text="BARUDAK" FontSize="74" LineHeight="70" Margin="0,6,0,0" />
+          <TextBlock Classes="display" Text="BOGOR" FontSize="74" LineHeight="70" Foreground="{StaticResource Kujang}" />
+          <!-- The three-stripe livery every Bogor angkot wears. -->
+          <StackPanel Orientation="Horizontal" Spacing="0" Margin="0,14,0,14" Height="12">
+            <Border Width="230" Background="{StaticResource Angkot}" />
+            <Border Width="44" Background="{StaticResource Cream}" />
+            <Border Width="22" Background="{StaticResource Brake}" />
+          </StackPanel>
+          <TextBlock x:Name="TaglineText" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource Cream}" />
+          <StackPanel Spacing="7" Margin="0,22,0,0" Width="360" HorizontalAlignment="Left">
+            <Button x:Name="ContinueButton" Classes="plate go" />
+            <Button x:Name="NewGameButton" Classes="plate" />
+            <Button x:Name="LanguageButton" Classes="plate" />
+            <Button x:Name="TitleSettingsButton" Classes="plate" />
+            <Button x:Name="CreditsButton" Classes="plate" />
+            <Button x:Name="QuitButton" Classes="plate" />
+          </StackPanel>
+          <TextBlock x:Name="TitleNote" Classes="label" Margin="0,16,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right" Width="430" Spacing="10">
+          <TextBlock x:Name="RosterLabel" Classes="label" />
+          <StackPanel x:Name="RosterList" Spacing="6" />
+          <Border Classes="panel" BorderBrush="{StaticResource Angkot}" BorderThickness="4,0,0,0" Padding="0" ClipToBounds="True">
+            <Grid ColumnDefinitions="Auto,*">
+              <Border Width="136" Height="136" VerticalAlignment="Top" ClipToBounds="True">
+                <Image x:Name="RosterPortrait" Width="136" Height="136" Stretch="UniformToFill" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="4" Margin="14,10,14,10" VerticalAlignment="Center">
+                <TextBlock x:Name="RosterBio" Classes="body" FontSize="17" LineHeight="21" />
+                <TextBlock x:Name="RosterPerk" FontSize="17" FontWeight="Bold" TextWrapping="Wrap" Foreground="{StaticResource Kujang}" />
+              </StackPanel>
+            </Grid>
+          </Border>
+        </StackPanel>
+      </Grid>
+      <TextBlock x:Name="CreditText" Classes="label" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="56,0,0,22" />
+      <TextBlock x:Name="VersionText" Classes="label" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,40,22" />
+    </Grid>
+
+    <!-- ============================== Pause menu ============================== -->
+    <Grid x:Name="PauseScreen" IsVisible="False" Background="#D912181C">
+      <Grid RowDefinitions="Auto,*,Auto" Margin="44,30,44,24">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <StackPanel Orientation="Horizontal" Spacing="14">
+            <Border Width="46" Height="46" CornerRadius="9" ClipToBounds="True">
+              <Image Source="avares://BarudakBogor/Assets/Art/icon_256.png" />
+            </Border>
+            <StackPanel x:Name="TabBar" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" />
+          </StackPanel>
+          <Button x:Name="ResumeButton" Grid.Column="2" Classes="plate go" HorizontalAlignment="Right" />
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,18,0,12">
+          <!-- Map -->
+          <Grid x:Name="TabMap" ColumnDefinitions="*,300">
+            <Border CornerRadius="6" ClipToBounds="True" Background="#0D1215" BorderBrush="{StaticResource AsphaltSoft}" BorderThickness="2">
+              <v:MapControl x:Name="BigMap" Full="True" />
+            </Border>
+            <StackPanel Grid.Column="1" Margin="18,0,0,0" Spacing="8">
+              <TextBlock x:Name="MapTitle" Classes="display" FontSize="20" Foreground="{StaticResource Kujang}" TextWrapping="Wrap" />
+              <TextBlock x:Name="MapDetail" Classes="body" FontSize="18" LineHeight="23" />
+              <Button x:Name="FastTravelButton" Classes="plate go small" IsVisible="False" />
+              <TextBlock x:Name="MapHelp" Classes="label" TextWrapping="Wrap" Margin="0,10,0,0" />
+            </StackPanel>
+          </Grid>
+          <!-- Missions / careers / settings / help share one scrolling column. -->
+          <ScrollViewer x:Name="TabList" IsVisible="False" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="TabContent" Spacing="8" MaxWidth="860" HorizontalAlignment="Left" />
+          </ScrollViewer>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+          <TextBlock x:Name="PauseCredit" Classes="label" VerticalAlignment="Center" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="SaveButton" Classes="plate small" />
+            <Button x:Name="ToTitleButton" Classes="plate small" />
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Grid>
+
+    <!-- ============================== Credits ============================== -->
+    <Grid x:Name="CreditsScreen" IsVisible="False" Background="{StaticResource Asphalt}" ClipToBounds="True">
+      <Grid.Styles>
+        <Style Selector="TextBlock.role">
+          <Setter Property="FontSize" Value="15" />
+          <Setter Property="FontWeight" Value="SemiBold" />
+          <Setter Property="LetterSpacing" Value="2" />
+          <Setter Property="Foreground" Value="{StaticResource Kujang}" />
+          <Setter Property="Margin" Value="0,30,0,3" />
+        </Style>
+        <Style Selector="TextBlock.name">
+          <Setter Property="FontFamily" Value="{StaticResource Display}" />
+          <Setter Property="FontWeight" Value="Normal" />
+          <Setter Property="FontSize" Value="23" />
+          <Setter Property="LineHeight" Value="29" />
+          <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+      </Grid.Styles>
+      <!-- The tall painting drifts from the mountain down to the city while the names roll up. -->
+      <Canvas>
+        <Image x:Name="CreditsArt" Source="avares://BarudakBogor/Assets/Art/credits.jpg" Stretch="Fill" />
+      </Canvas>
+      <Border HorizontalAlignment="Left" Width="560">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+            <GradientStop Offset="0" Color="#F212181C" />
+            <GradientStop Offset="0.72" Color="#D012181C" />
+            <GradientStop Offset="1" Color="#0012181C" />
+          </LinearGradientBrush>
+        </Border.Background>
+      </Border>
+      <Canvas ClipToBounds="True">
+        <StackPanel x:Name="CreditsRoll" Width="410" Canvas.Left="56" />
+      </Canvas>
+      <Button x:Name="CreditsCloseButton" Classes="plate small" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,40,24" />
+    </Grid>
+
+    <!-- ============================== Launch ============================== -->
+    <Grid x:Name="LoadingScreen" Background="{StaticResource Asphalt}">
+      <Grid.Transitions>
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.7" />
+        </Transitions>
+      </Grid.Transitions>
+      <Image Source="avares://BarudakBogor/Assets/Art/keyart.jpg" Stretch="UniformToFill" />
+      <Border>
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#3312181C" />
+            <GradientStop Offset="0.5" Color="#0012181C" />
+            <GradientStop Offset="1" Color="#F212181C" />
+          </LinearGradientBrush>
+        </Border.Background>
+      </Border>
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Bottom" Margin="48,0,48,36">
+        <StackPanel Orientation="Horizontal" Spacing="18">
+          <Border Width="92" Height="92" CornerRadius="18" ClipToBounds="True" VerticalAlignment="Bottom">
+            <Image Source="avares://BarudakBogor/Assets/Art/icon_256.png" />
+          </Border>
+          <StackPanel VerticalAlignment="Bottom">
+            <TextBlock Classes="display" Text="BARUDAK BOGOR" FontSize="46" LineHeight="46" />
+            <Border Height="8" Margin="0,6,0,8" Width="296" HorizontalAlignment="Left" ClipToBounds="True" Background="#33F6ECCB">
+              <!-- The angkot livery stripe runs across the bar while the city is being built. -->
+              <StackPanel x:Name="LoadingStripe" Orientation="Horizontal" HorizontalAlignment="Left">
+                <Border Width="110" Background="{StaticResource Angkot}" />
+                <Border Width="22" Background="{StaticResource Cream}" />
+                <Border Width="12" Background="{StaticResource Brake}" />
+              </StackPanel>
+            </Border>
+            <TextBlock x:Name="LoadingText" Classes="label" Foreground="{StaticResource Cream}" Text="NGARAKIT KOTA BOGOR…" />
+          </StackPanel>
+        </StackPanel>
+        <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Spacing="2">
+          <TextBlock x:Name="LoadingTagline" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" />
+          <TextBlock x:Name="LoadingCredit" Classes="label" Foreground="{StaticResource Cream}" HorizontalAlignment="Right" />
+        </StackPanel>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

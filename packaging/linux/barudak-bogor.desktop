@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Barudak Bogor
+Comment=Open-world game set in the rainy city of Bogor
+Comment[id]=Game open-world berlatar Kota Hujan Bogor
+Exec=barudak-bogor
+Icon=barudak-bogor
+Terminal=false
+Categories=Game;ActionGame;

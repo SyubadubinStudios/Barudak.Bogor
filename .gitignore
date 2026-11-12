@@ -426,3 +426,10 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# Barudak Bogor
+saves/
+# Logs written by the Rodin MCP server (local paths and temporary URLs)
+*_History.json
+# Build output of the packaging scripts
+/dist/

@@ -1,0 +1,137 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="BarudakBogor.Game.App"
+             RequestedThemeVariant="Dark">
+
+  <!--
+    Visual identity: the Bogor angkot. Livery green, the gold of the kujang, the cream of a
+    hand-cut route sticker, on wet-asphalt panels. Bungee is the sign-painter face used on
+    plates and numbers; Barlow Condensed (a road-signage grotesque) carries everything else.
+  -->
+  <Application.Resources>
+    <FontFamily x:Key="Display">avares://BarudakBogor/Assets/Fonts#Bungee</FontFamily>
+    <FontFamily x:Key="Body">avares://BarudakBogor/Assets/Fonts#Barlow Condensed</FontFamily>
+
+    <Color x:Key="AsphaltColor">#12181C</Color>
+    <Color x:Key="AngkotColor">#1E9E57</Color>
+    <Color x:Key="KujangColor">#F0B63A</Color>
+    <Color x:Key="CreamColor">#F6ECCB</Color>
+    <Color x:Key="BrakeColor">#E5432E</Color>
+    <Color x:Key="RainColor">#5FC4C9</Color>
+
+    <SolidColorBrush x:Key="Asphalt" Color="{StaticResource AsphaltColor}" />
+    <SolidColorBrush x:Key="AsphaltGlass" Color="{StaticResource AsphaltColor}" Opacity="0.84" />
+    <SolidColorBrush x:Key="AsphaltSoft" Color="#1E272D" />
+    <SolidColorBrush x:Key="Angkot" Color="{StaticResource AngkotColor}" />
+    <SolidColorBrush x:Key="AngkotDeep" Color="#14703D" />
+    <SolidColorBrush x:Key="Kujang" Color="{StaticResource KujangColor}" />
+    <SolidColorBrush x:Key="Cream" Color="{StaticResource CreamColor}" />
+    <SolidColorBrush x:Key="CreamDim" Color="{StaticResource CreamColor}" Opacity="0.62" />
+    <SolidColorBrush x:Key="Brake" Color="{StaticResource BrakeColor}" />
+    <SolidColorBrush x:Key="Rain" Color="{StaticResource RainColor}" />
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="{StaticResource Body}" />
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="Foreground" Value="{StaticResource Cream}" />
+    </Style>
+
+    <Style Selector="TextBlock.display">
+      <Setter Property="FontFamily" Value="{StaticResource Display}" />
+      <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="LetterSpacing" Value="1.6" />
+      <Setter Property="Foreground" Value="{StaticResource CreamDim}" />
+    </Style>
+    <Style Selector="TextBlock.body">
+      <Setter Property="FontSize" Value="19" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="LineHeight" Value="25" />
+    </Style>
+
+    <Style Selector="Border.panel">
+      <Setter Property="Background" Value="{StaticResource AsphaltGlass}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="14,10" />
+    </Style>
+
+    <!-- Buttons are route plates: a slab with a hard drop edge that presses in. -->
+    <Style Selector="Button.plate">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="FontFamily" Value="{StaticResource Display}" />
+      <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="FontSize" Value="19" />
+      <Setter Property="Foreground" Value="{StaticResource Cream}" />
+      <Setter Property="Background" Value="{StaticResource AsphaltSoft}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Asphalt}" />
+      <Setter Property="BorderThickness" Value="0,0,0,4" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="20,11,20,9" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.plate:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#2A363D" />
+      <Setter Property="Foreground" Value="{StaticResource Kujang}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Asphalt}" />
+    </Style>
+    <Style Selector="Button.plate:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Asphalt}" />
+      <Setter Property="BorderThickness" Value="0,3,0,1" />
+    </Style>
+    <Style Selector="Button.plate:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="#1A2126" />
+      <Setter Property="Foreground" Value="#5E6A6C" />
+    </Style>
+    <Style Selector="Button.plate.go">
+      <Setter Property="Background" Value="{StaticResource Angkot}" />
+      <Setter Property="BorderBrush" Value="{StaticResource AngkotDeep}" />
+    </Style>
+    <Style Selector="Button.plate.go:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#25B565" />
+      <Setter Property="Foreground" Value="{StaticResource Cream}" />
+      <Setter Property="BorderBrush" Value="{StaticResource AngkotDeep}" />
+    </Style>
+    <Style Selector="Button.plate.small">
+      <Setter Property="FontFamily" Value="{StaticResource Body}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="Padding" Value="14,7,14,6" />
+      <Setter Property="BorderThickness" Value="0,0,0,3" />
+    </Style>
+    <Style Selector="Button.plate.tab">
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="Padding" Value="16,9,16,7" />
+    </Style>
+    <Style Selector="Button.plate.selected">
+      <Setter Property="Background" Value="{StaticResource Kujang}" />
+      <Setter Property="Foreground" Value="{StaticResource Asphalt}" />
+      <Setter Property="BorderBrush" Value="#B5841D" />
+    </Style>
+    <Style Selector="Button.plate.selected:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource Kujang}" />
+      <Setter Property="Foreground" Value="{StaticResource Asphalt}" />
+      <Setter Property="BorderBrush" Value="#B5841D" />
+    </Style>
+
+    <Style Selector="ProgressBar.gauge">
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="Height" Value="8" />
+      <Setter Property="MinHeight" Value="8" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="#33F6ECCB" />
+      <Setter Property="Foreground" Value="{StaticResource Kujang}" />
+    </Style>
+  </Application.Styles>
+
+</Application>

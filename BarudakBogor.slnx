@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BarudakBogor.Core/BarudakBogor.Core.csproj" />
+    <Project Path="src/BarudakBogor.Game/BarudakBogor.Game.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BarudakBogor.Core.Tests/BarudakBogor.Core.Tests.csproj" />
+  </Folder>
+</Solution>
