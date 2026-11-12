@@ -4,6 +4,38 @@ Dibuat oleh Ariana Mischa Fadhila dari Syubadubin Studios.
 
 Roadmap ada di [PLAN.md](PLAN.md). Entri terbaru di atas.
 
+## 2026-11-12 — Performa (sesi 5)
+
+Rilis pertama **v0.1.0** terbit di GitHub (installer Windows, zip, `.deb`, `.tar.gz`, dua `.dmg`); rilis itu belum memuat perubahan di bawah.
+
+### Yang ditemukan
+
+- **Angka FPS lama untuk Sedang dan Tinggi salah.** Alat ukur `--bench` memakai waktu simulasi yang dibatasi 50 ms per frame, sehingga tidak pernah melaporkan di bawah 20 fps. Dengan waktu nyata, sebelum perbaikan: Hemat 31,7 · Sedang 22,4 · Tinggi 15,1 fps.
+- **Hambatannya penjadwal frame, bukan isi adegan.** Mematikan lampu, hujan, kabut, langit prosedural, atau memperkecil radius dunia tidak mengubah FPS. Kontrol `ThreeNetView` berdetak lewat `DispatcherTimer`, yang di Windows berjalan di kisi ±15,6 ms, sehingga setiap frame dibulatkan ke atas (31, 45, 66 ms).
+
+### Yang diubah
+
+- Frame kini dipompa dari refresh layar (`RequestAnimationFrame`) dan timer bawaan kontrol dimatikan.
+- `assets/blender/bake_palette.py`: warna datar tiap model low-poly digabung ke satu tekstur palet, jadi satu bagian = satu draw call. Total 684 → 205 primitif di semua model; di adegan uji 570 → sekitar 210 draw call. Tampilan tidak berubah.
+- `--bench` memakai waktu nyata dan melaporkan waktu kerja per frame.
+- Perbaikan crash saat jendela ditutup dari dalam sebuah frame.
+
+### Hasil (Intel UHD 620, jendela 1280 x 720, hujan deras, naik angkot)
+
+| Kualitas | Sebelum | Sesudah | Waktu kerja per frame |
+|---|---|---|---|
+| Hemat | 31,7 fps | 30,3 fps | 13,9 ms |
+| Sedang | 22,4 fps | 31,4 fps | 24,4 ms |
+| Tinggi | 15,1 fps | 18,1 fps | 50,4 ms |
+
+### Catatan jujur
+
+- Penggabungan draw call sendiri tidak menaikkan FPS di mesin ini (GPU-nya terikat piksel); manfaatnya baru terasa di CPU yang lebih lemah atau adegan yang lebih padat.
+- Hemat terkunci di 30 fps walau kerjanya hanya 13,9 ms: sisa waktu habis di komposisi Avalonia dan frame jatuh ke refresh berikutnya. Belum diselidiki.
+- Tinggi memang berat untuk grafis terintegrasi (MSAA 4x, SSAO, bayangan 3 kaskade pada resolusi penuh).
+- Bahan emisif (lampu depan, jendela villa) kini warna biasa di palet, tidak lagi berpendar sendiri.
+- Perbaikan penjadwal sebaiknya juga masuk ke `ThreeNetView` di repo Three.Net; belum saya kerjakan.
+
 ## 2026-11-12 — Repo dan CI rilis (sesi 4)
 
 - Proyek dipindahkan ke `C:\experiment\syubadubin\Barudak.Bogor` (repo GitHub `SyubadubinStudios/Barudak.Bogor`) dan folder asal dihapus.

@@ -72,4 +72,4 @@ Things worth knowing before changing them:
 
 ## Performance notes
 
-Measured with `--bench` at 1280 x 720 on Intel UHD 620, heavy rain, driving: Hemat 27.6 fps, Sedang 21.4 fps, Tinggi 20.0 fps. The scene is 400–500 draw calls and about 440 k triangles. The known costs are the per-primitive draw calls of the low-poly models and the infill buildings; see PLAN.md.
+Measured with `--bench` at 1280 x 720 on Intel UHD 620, heavy rain, driving: Hemat 30 fps, Sedang 31 fps, Tinggi 18 fps, with about 210 draw calls and 450 k triangles. Frames are pumped from the display refresh (`MainWindow.PumpFrame`) because the view's own `DispatcherTimer` rounds every frame up to the 15.6 ms Windows timer grid. The machine is pixel-bound: scene content barely moves the frame rate, resolution and post effects do.

@@ -21,6 +21,7 @@ src/BarudakBogor.Game/bin/Release/net10.0/BarudakBogor.exe --bench bench.txt
 
 blender --background --python assets/blender/build_all.py        # rebuild the low-poly GLBs
 blender --background --python assets/blender/build_all.py -- becak ayam   # only the named models
+blender --background --python assets/blender/bake_palette.py     # after build_all: one palette texture per model, one draw call per part
 blender --background --python assets/blender/rig_rodin.py        # raw Rodin characters -> animated parts in assets/models
 blender --background --python assets/blender/optimize_rodin.py   # raw Rodin props -> assets/models
 ```
@@ -51,14 +52,15 @@ To verify a visual change, run `--capture` into a scratch folder and look at the
 - Models: metres, front faces glTF +Z, origin on the ground at the footprint centre. Moving parts are named child nodes found by `ModelLibrary.FindPart`: `wheel_fl/fr/rl/rr`, `wheel_f/r`, `wheel_l/r`, `leg_l/r`, `arm_l/r`, `head`, `leg_fl/fr/rl/rr`, `tail`. Characters and animals are animated in code from these parts; there is no skeletal animation.
 - Rodin characters come as one fused mesh. `rig_rodin.py` slices them into `torso`, `head`, `arm_l/r`, `leg_l/r` (T-pose sources get arms; A-pose sources only legs) so the same code animation works. Do not run a full `build_all.py` without checking it will not overwrite those files.
 - Open vehicles (motorbike, delman, becak) get a rider model from `EntityRenderer.RiderOf` whenever they are occupied by someone other than the player.
-- A GLB loads as one node per material primitive (a character is about 18 draw calls). Static scenery goes through `ModelLibrary.Primitives` and `Node.SetInstances`.
+- A GLB loads as one node per material primitive, so the low-poly models are baked by `bake_palette.py` to a single palette-textured material per part (a character is 6 draw calls). `papan_reklame` is left unbaked because the game swaps a poster onto its blank face. Static scenery goes through `ModelLibrary.Primitives` and `Node.SetInstances`.
+- Frames are pumped by `MainWindow.PumpFrame` from `RequestAnimationFrame`; `Viewport.IsRendering` stays false. The view's own `DispatcherTimer` snaps to the 15.6 ms Windows timer grid and costs up to a third of the frame rate.
 - Nobody gets hurt: pedestrians dodge vehicles. Keep the tone comedic and non-violent.
 - Credit line in docs and in the app: "Dibuat oleh Ariana Mischa Fadhila dari Syubadubin Studios" (`Loc.Credit`).
 - Documentation is bilingual: `README.md` holds both languages, `docs/en` and `docs/id` mirror each other, and screenshots live in `docs/images`.
 
 ## Gotchas
 
-- Target hardware includes integrated graphics (measured 20–28 fps on Intel UHD 620). Watch draw calls and triangles; `F3` shows them in game.
+- Target hardware includes integrated graphics (about 30 fps on Intel UHD 620 at Hemat/Sedang, 18 at Tinggi). That machine is pixel-bound: resolution and post effects matter, scene content barely does. `--bench` reports real frame time and per-frame work; `F3` shows draw calls in game.
 - The Bash tool here mangles heredocs containing apostrophes; write files with the editor tools.
 - The user allows fixes to Three.Net itself in `C:\experiment\VibeCoding\Vibe_Graphics\ThreeNet` when the engine is the problem (the game currently uses the published NuGet packages, not that checkout).
 - Asset tools: Blender MCP for modelling (the live Blender crashed once when a script overrode the view layer of a new scene; prefer `blender --background` for batch work) and Rodin MCP for generated 3D and 2D art (each generation costs the user credits). Raw Rodin GLBs are far too heavy to ship; always run them through `optimize_rodin.py`.

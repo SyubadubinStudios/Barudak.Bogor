@@ -51,7 +51,7 @@ Ini **fondasi yang bisa dimainkan** (v0.1), bukan game AAA yang sudah jadi. Yang
 - Aktivitas: mancing, ojol, touring Puncak, badminton kampung, karaoke, fotografi hujan, usaha bandrek.
 - 5 karier/akhir cerita, simpan otomatis, dua bahasa (Indonesia/Inggris).
 
-Yang belum: lihat [PLAN.md](PLAN.md) dan [Progress.md](Progress.md). Visualnya low-poly bergaya, belum setara AAA, dan performa di grafis terintegrasi masih rendah (sekitar 20–28 fps di Intel UHD 620).
+Yang belum: lihat [PLAN.md](PLAN.md) dan [Progress.md](Progress.md). Visualnya low-poly bergaya, belum setara AAA, dan performa di grafis terintegrasi terbatas (sekitar 30 fps di Intel UHD 620 pada kualitas Hemat atau Sedang, 18 fps pada Tinggi).
 
 ### Menjalankan
 
@@ -102,7 +102,7 @@ This is a **playable foundation** (v0.1), not a finished AAA game. What exists:
 - Activities: fishing, ojol (ride-hailing), Puncak touring, kampung badminton, karaoke, rain photography, a bandrek business.
 - 5 careers/endings, autosave, two languages (Indonesian/English).
 
-What is missing: see [PLAN.md](PLAN.md) and [Progress.md](Progress.md). The look is stylised low-poly rather than AAA, and performance on integrated graphics is still low (about 20–28 fps on Intel UHD 620).
+What is missing: see [PLAN.md](PLAN.md) and [Progress.md](Progress.md). The look is stylised low-poly rather than AAA, and performance on integrated graphics is limited (about 30 fps on Intel UHD 620 at the Hemat or Sedang quality levels, 18 fps at Tinggi).
 
 ### Run
 

@@ -26,6 +26,9 @@ public partial class MainWindow
     private string? _benchFile;
     private int _benchFrames;
     private float _benchSeconds;
+    private double _benchCpuMs;
+    private double _benchGameMs;
+    private double _benchViewMs;
 
     /// <summary>Drives the angkot along the ring road in heavy rain at each quality level and writes the frame rates.</summary>
     private void StartBench(string file)
@@ -51,6 +54,9 @@ public partial class MainWindow
                 _scriptedInput = new InputState { Move = new Vector2(0f, 0.7f) };
                 _benchFrames = 0;
                 _benchSeconds = 0f;
+                _benchCpuMs = 0;
+                _benchGameMs = 0;
+                _benchViewMs = 0;
             }));
         }
     }
@@ -293,7 +299,7 @@ public partial class MainWindow
         }));
     }
 
-    private void UpdateCapture(float dt)
+    private void UpdateCapture(float dt, float realSeconds)
     {
         if (_captureDirectory is null)
         {
@@ -319,8 +325,12 @@ public partial class MainWindow
         // The first seconds after a quality switch include renderer start-up; leave them out.
         if (_benchFile is not null && _shotTimer < _shot.Seconds - 3f)
         {
+            // Real elapsed time: the simulation step is capped at 50 ms, which would hide anything below 20 fps.
             _benchFrames++;
-            _benchSeconds += dt;
+            _benchSeconds += realSeconds;
+            _benchCpuMs += Viewport.Stats.CpuTimeMs;
+            _benchGameMs += _gameMs;
+            _benchViewMs += _viewMs;
         }
 
         if (_shotTimer > 0f || (_world!.IsBusy && _benchFile is null))
@@ -332,7 +342,7 @@ public partial class MainWindow
         {
             ThreeNet.FrameStats stats = Viewport.Stats;
             File.AppendAllText(_benchFile,
-                $"{_shot.Name[6..],-7} {_benchFrames / MathF.Max(_benchSeconds, 0.01f),5:0.0} fps (sim)  {stats.DrawCalls,4} draws  {stats.Triangles / 1000,4} k tris  render {Viewport.Renderer?.Width} x {Viewport.Renderer?.Height}  {Viewport.Renderer?.AdapterName}{Environment.NewLine}");
+                $"{_shot.Name[6..],-7} {_benchFrames / MathF.Max(_benchSeconds, 0.01f),5:0.0} fps  {_benchSeconds * 1000f / Math.Max(_benchFrames, 1),5:0.0} ms/frame  work {_benchViewMs / Math.Max(_benchFrames, 1),4:0.0} ms (game {_benchGameMs / Math.Max(_benchFrames, 1),3:0.0})  renderer cpu {_benchCpuMs / Math.Max(_benchFrames, 1),4:0.0} ms  {stats.DrawCalls,4} draws  {stats.Triangles / 1000,4} k tris  render {Viewport.Renderer?.Width} x {Viewport.Renderer?.Height}  {Viewport.Renderer?.AdapterName}{Environment.NewLine}");
             _shot = null;
             return;
         }

@@ -72,4 +72,4 @@ Hal yang perlu diketahui sebelum mengubahnya:
 
 ## Catatan performa
 
-Diukur dengan `--bench` pada 1280 x 720 di Intel UHD 620, hujan deras, sambil menyetir: Hemat 27,6 fps, Sedang 21,4 fps, Tinggi 20,0 fps. Adegan berisi 400–500 draw call dan sekitar 440 ribu segitiga. Biaya yang sudah diketahui: draw call per primitif pada model low-poly dan bangunan pengisi; lihat PLAN.md.
+Diukur dengan `--bench` pada 1280 x 720 di Intel UHD 620, hujan deras, sambil menyetir: Hemat 30 fps, Sedang 31 fps, Tinggi 18 fps, dengan sekitar 210 draw call dan 450 ribu segitiga. Frame dipompa dari refresh layar (`MainWindow.PumpFrame`) karena `DispatcherTimer` bawaan kontrol membulatkan setiap frame ke kisi timer Windows 15,6 ms. Mesin ini terikat piksel: isi adegan hampir tidak mengubah FPS, sedangkan resolusi dan efek pasca-proses mengubahnya.

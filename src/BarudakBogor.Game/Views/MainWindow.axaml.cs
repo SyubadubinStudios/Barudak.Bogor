@@ -56,6 +56,9 @@ public partial class MainWindow : Window
     private int _frames;
     private float _fpsTimer;
     private InputState? _scriptedInput;
+    private double _gameMs;
+    private bool _closed;
+    private double _viewMs;
 
     public MainWindow()
     {
@@ -76,7 +79,10 @@ public partial class MainWindow : Window
         Closed += (_, _) => Shutdown();
 
         Viewport.EnableInteraction = false;
-        Viewport.MaxFramesPerSecond = 60;
+        // The view's own timer ticks on the 15.6 ms Windows timer grid, which rounds every frame up
+        // to a multiple of it (a 20 ms frame becomes 31 ms). Frames are pumped from the display's
+        // refresh instead; see PumpFrame.
+        Viewport.IsRendering = false;
         Viewport.Frame += OnFrame;
         Viewport.RenderFailed += (_, message) => LoadingText.Text = message;
 
@@ -125,6 +131,7 @@ public partial class MainWindow : Window
         _world.LoadNow(_session!.Player.Ground);
 
         Viewport.Scene = _scene;
+        RequestAnimationFrame(PumpFrame);
         Viewport.Camera = _camera.Node;
         ShowTitle();
         // Cross-fade from the painted Bogor to the living one.
@@ -158,8 +165,25 @@ public partial class MainWindow : Window
         ClearToasts();
     }
 
+    /// <summary>Renders one frame per display refresh for as long as the window lives.</summary>
+    private void PumpFrame(TimeSpan time)
+    {
+        if (_closed)
+        {
+            return;
+        }
+
+        // Ask for the next refresh before doing the work, so a frame that finishes in time is not
+        // made to wait an extra refresh for its successor to be scheduled.
+        RequestAnimationFrame(PumpFrame);
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        Viewport.RenderFrame();
+        _viewMs = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+    }
+
     private void Shutdown()
     {
+        _closed = true;
         if (_session is not null && _screen is Screen.Playing or Screen.Paused)
         {
             SaveGame(quiet: true);
@@ -237,7 +261,13 @@ public partial class MainWindow : Window
         }
 
         float dt = MathF.Min(e.DeltaSeconds, 0.05f);
-        UpdateCapture(dt);
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        UpdateCapture(dt, e.DeltaSeconds);
+        if (_closed)
+        {
+            // The capture tour closed the window from inside this frame; everything is torn down.
+            return;
+        }
 
         switch (_screen)
         {
@@ -276,6 +306,7 @@ public partial class MainWindow : Window
         }
 
         _pressed.Clear();
+        _gameMs = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         _frames++;
         _fpsTimer += e.DeltaSeconds;
         if (_fpsTimer >= 0.5f)
