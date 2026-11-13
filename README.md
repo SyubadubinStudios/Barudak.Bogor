@@ -29,8 +29,18 @@ An open-world, GTA-style game set in and around the city of Bogor: rain that rea
 | ![Kota ramai](docs/images/ramai-kota.png) | ![Langit malam](docs/images/langit-malam.png) |
 |---|---|
 | Lalu lintas dan warga di jalur lingkar / Traffic and townsfolk on the ring road | Bintang dan awan malam / Stars and night cloud |
+| ![Lari](docs/images/lari.png) | ![Ciliwung](docs/images/ciliwung.png) |
+| Karakter bertulang: lari / The skeletal character running | Sungai Ciliwung dari jembatan / The Ciliwung from a bridge |
 | ![Pengendara](docs/images/pengendara.png) | ![Kabut hujan](docs/images/kabut-hujan.png) |
 | Becak, delman, dan ojek dengan pengendaranya / Becak, delman and ojek with their riders | Hujan yang membawa kabut / Rain that brings mist |
+
+| ![Stasiun Bogor](docs/images/stasiun.png) | ![Ciliwung](docs/images/ciliwung.png) |
+|---|---|
+| Stasiun Bogor dan KRL / Bogor Station and the commuter train | Jembatan di atas Ciliwung / A bridge over the Ciliwung |
+| ![Botani Square](docs/images/botani-square.png) | ![Peta kota](docs/images/peta-kota.png) |
+| Botani Square di Jalan Pajajaran / Botani Square on Pajajaran Road | Peta kota mengikuti Bogor yang asli / The city map follows the real Bogor |
+| ![Genangan](docs/images/genangan.png) | ![Kokpit](docs/images/kokpit.png) |
+| Genangan dan pantulan saat hujan / Puddles and reflections in the rain | Dari kursi sopir angkot / From the angkot driver's seat |
 
 Semua gambar di atas diambil dari game yang berjalan (`--capture`). / Every picture above was captured from the running game (`--capture`).
 
@@ -42,16 +52,23 @@ Semua gambar di atas diambil dari game yang berjalan (`--capture`). / Every pict
 
 Ini **fondasi yang bisa dimainkan** (v0.1), bukan game AAA yang sudah jadi. Yang sudah ada:
 
-- Dunia 40 km x 40 km yang di-streaming: 8 area (Pusat Kota, Kebun Raya, Pasar Anyar, Dramaga, Sentul, Empang, Puncak, Gang Selot), sekitar 1.240 ruas jalan dan 32.000 bangunan prosedural.
+- Dunia 40 km x 40 km yang di-streaming: 9 area (Pusat Kota, Kebun Raya, Pasar Anyar, Suryakencana, Dramaga, Sentul, Empang, Puncak, Gang Selot) dan lebih dari 20.000 bangunan prosedural.
+- **Pusat kota mengikuti Bogor yang asli.** Jalan utama (Pajajaran, Juanda, Otista, Jalak Harupat, Sudirman, Ahmad Yani, Pemuda, Suryakencana, Siliwangi, Kapten Muslihat, Merdeka, Pahlawan), alur Sungai Ciliwung, dan rel KRL memakai garis sebenarnya dari OpenStreetMap, diukur dari Tugu Kujang. Jalan lingkungan dan gang di pusat kota juga jalan asli (sekitar 300 km).
+- 46 tempat, di antaranya Kebun Raya, Istana Bogor, Air Mancur, Museum Zoologi, Museum PETA (Pembela Tanah Air), Museum Tanah dan Pertanian, Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Plaza Ekalokasari, Lotte Mart, Bogor Great Mall, Lawang Suryakencana (Pecinan), Lapangan Sempur, GOR Pajajaran, Stasiun Bogor, Terminal Baranangsiang, Balai Kota, Katedral, Masjid Raya, Alun-alun, Taman Kencana, Bendung Katulampa.
+- Sungai dengan jembatan, rel dengan perlintasan sebidang, dan KRL yang bolak-balik dari Stasiun Bogor (dan selalu berhenti kalau ada orang di rel).
+- Warga dengan jadwal harian (anak sekolah, pegawai, pedagang), payung saat hujan, dan celetukan untuk pemain yang lewat.
 - Cuaca dinamis: cerah, berawan, gerimis, hujan sedang, hujan deras, badai petir, kabut Puncak, mati lampu lokal. Jalan basah membuat ban lebih licin.
 - 13 kendaraan (angkot, motor, mobil keluarga, taksi, truk, delman, becak, bemo, bajaj, mobil tahu bulat, mobil bakso, gerobak cilok, gerobak bandrek), lalu lintas dan warga yang ramai, 9 jenis hewan termasuk kucing, anjing, dan ayam kampung.
 - Siang-malam 24 menit dengan pagi, siang, sore, malam; langit berawan, berbintang, berbulan; kabut yang kadang datang bersama hujan.
 - Musik latar laras degung yang digubah oleh kode.
-- 5 karakter dengan kemampuan berbeda dan 8 misi cerita.
+- 5 karakter dengan kemampuan berbeda, 10 misi cerita (termasuk lanjutan flashdisk rahasia sampai tamat), dan 3 misi sampingan.
+- Gamepad untuk bermain dan untuk menu; kamera belakang dan orang pertama.
 - Aktivitas: mancing, ojol, touring Puncak, badminton kampung, karaoke, fotografi hujan, usaha bandrek.
 - 5 karier/akhir cerita, simpan otomatis, dua bahasa (Indonesia/Inggris).
 
-Yang belum: lihat [PLAN.md](PLAN.md) dan [Progress.md](Progress.md). Visualnya low-poly bergaya, belum setara AAA, dan performa di grafis terintegrasi terbatas (sekitar 30 fps di Intel UHD 620 pada kualitas Hemat atau Sedang, 18 fps pada Tinggi).
+Yang belum: lihat [PLAN.md](PLAN.md) dan [Progress.md](Progress.md). Visualnya low-poly bergaya, belum setara AAA, dan performa di grafis terintegrasi terbatas (Intel UHD 620, jendela 1280 x 720: sekitar 60 fps pada Hemat, 30 fps pada Sedang, dan 20 fps pada Tinggi dengan resolusi adaptif). Tempat nyata punya papan nama dan beberapa punya bentuk khas dari balok, tetapi bukan tiruan bentuk aslinya.
+
+Data peta: © kontributor OpenStreetMap, lisensi ODbL.
 
 ### Menjalankan
 
@@ -77,8 +94,11 @@ Unduh dari halaman [Releases](https://github.com/SyubadubinStudios/Barudak.Bogor
 | H | Klakson |
 | O | Aplikasi ojol nyala/mati (di atas motor) |
 | P | Potret |
+| V | Ganti kamera: belakang / orang pertama |
 | M / Esc | Peta dan menu |
 | F5 | Simpan cepat |
+
+Gamepad (XInput) juga didukung: stik kiri jalan/setir, stik kanan kamera, RT/LT gas dan rem, A lompat/aksi, X naik/turun dan bicara, B batal, Y klakson, LB lari, RB rem tangan, Start menu, Select peta. Menu juga bisa dijalankan dengan d-pad, A, dan B. Daftar lengkap ada di menu jeda.
 
 ### Dokumentasi
 
@@ -93,16 +113,23 @@ Unduh dari halaman [Releases](https://github.com/SyubadubinStudios/Barudak.Bogor
 
 This is a **playable foundation** (v0.1), not a finished AAA game. What exists:
 
-- A streamed 40 km x 40 km world: 8 areas (City Centre, Botanical Gardens, Pasar Anyar, Dramaga, Sentul, Empang, Puncak, Selot Alley), about 1,240 road segments and 32,000 procedural buildings.
+- A streamed 40 km x 40 km world: 9 areas (City Centre, Botanical Gardens, Pasar Anyar, Suryakencana, Dramaga, Sentul, Empang, Puncak, Selot Alley) and more than 20,000 procedural buildings.
+- **The city centre follows the real Bogor.** The main roads (Pajajaran, Juanda, Otista, Jalak Harupat, Sudirman, Ahmad Yani, Pemuda, Suryakencana, Siliwangi, Kapten Muslihat, Merdeka, Pahlawan), the course of the Ciliwung and the commuter railway use their true lines from OpenStreetMap, measured from Tugu Kujang. The side streets and alleys of the centre are the real ones too (about 300 km).
+- 46 places, among them the Botanical Gardens, Bogor Palace, the Fountain, the Zoology Museum, the PETA Museum, the Soil and Agriculture Museum, Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Ekalokasari Plaza, Lotte Mart, Bogor Great Mall, the Suryakencana gate (Chinatown), Sempur Field, Pajajaran Sports Ground, Bogor Station, Baranangsiang Terminal, City Hall, the Cathedral, the Grand Mosque, the Town Square, Taman Kencana and Katulampa Weir.
+- A river with bridges, a railway with level crossings, and a commuter train shuttling from Bogor Station (it always stops for someone on the track).
+- Townsfolk with daily routines (schoolchildren, office workers, traders), umbrellas in the rain, and small talk for a passing player.
 - Dynamic weather: clear, cloudy, drizzle, rain, heavy rain, thunderstorm, Puncak fog and local blackouts. Wet roads reduce tyre grip.
 - 13 vehicles (angkot, motorbike, family car, taxi, truck, horse cart, becak, bemo, auto rickshaw, tahu bulat truck, bakso truck, cilok cart, bandrek cart), busy traffic and townsfolk, and 9 kinds of animals including stray cats, dogs and chickens.
 - A 24-minute day with morning, midday, afternoon and night; a sky with clouds, stars and a moon; mist that sometimes comes with the rain.
 - Background music in the Sundanese degung scale, composed in code.
-- 5 characters with different perks and 8 story missions.
+- 5 characters with different perks, 10 story missions (including the flash drive story through to its ending) and 3 side missions.
+- Controller support in play and in the menus; chase and first-person cameras.
 - Activities: fishing, ojol (ride-hailing), Puncak touring, kampung badminton, karaoke, rain photography, a bandrek business.
 - 5 careers/endings, autosave, two languages (Indonesian/English).
 
-What is missing: see [PLAN.md](PLAN.md) and [Progress.md](Progress.md). The look is stylised low-poly rather than AAA, and performance on integrated graphics is limited (about 30 fps on Intel UHD 620 at the Hemat or Sedang quality levels, 18 fps at Tinggi).
+What is missing: see [PLAN.md](PLAN.md) and [Progress.md](Progress.md). The look is stylised low-poly rather than AAA, and performance on integrated graphics is limited (Intel UHD 620, 1280 x 720 window: about 60 fps at Hemat, 30 fps at Sedang and 20 fps at Tinggi with dynamic resolution). Real places carry name boards and a few have a distinctive block-built shape, but they are not likenesses of the originals.
+
+Map data: © OpenStreetMap contributors, ODbL.
 
 ### Run
 
@@ -128,8 +155,11 @@ Download from the [Releases](https://github.com/SyubadubinStudios/Barudak.Bogor/
 | H | Horn |
 | O | Ojol app on/off (on a motorbike) |
 | P | Take a photo |
+| V | Camera view: chase / first person |
 | M / Esc | Map and menu |
 | F5 | Quick save |
+
+Controllers (XInput) work too: left stick walks and steers, right stick looks, RT/LT throttle and brake, A jump/action, X enter/leave and talk, B cancel, Y horn, LB run, RB handbrake, Start menu, Select map. The menus work with the d-pad, A and B as well. The full list is in the pause menu.
 
 ### Documentation
 
@@ -145,7 +175,7 @@ Download from the [Releases](https://github.com/SyubadubinStudios/Barudak.Bogor/
 | ![Kendaraan](docs/images/assets-vehicles.png) | ![Karakter](docs/images/assets-characters.png) |
 
 - Model low-poly dibuat dengan skrip Blender (`assets/blender/build_all.py`). / Low-poly models are built by Blender scripts.
-- Lima karakter utama, warga, dan NPC pemberi misi dibuat dengan Rodin lalu dipotong jadi bagian tubuh oleh `assets/blender/rig_rodin.py`. / The five main characters, townsfolk and mission givers were generated with Rodin and cut into animated parts by `assets/blender/rig_rodin.py`.
+- Lima karakter utama, warga, dan NPC pemberi misi dibuat dengan Rodin lalu dipotong jadi bagian tubuh oleh `assets/blender/rig_rodin.py`; karakter pemain diberi rangka tulang dan klip animasi oleh `assets/blender/rig_bones.py`. / The five main characters, townsfolk and mission givers were generated with Rodin and cut into animated parts by `assets/blender/rig_rodin.py`; the player characters get a skeleton and animation clips from `assets/blender/rig_bones.py`.
 - Key art, potret, latar kredit, ikon dan baliho dibuat dengan Rodin MCP (Hyper3D dan Nano Banana 2), lalu diringankan dengan `assets/blender/optimize_rodin.py`. / Mission givers, key art, portraits, credits art, icon and billboard were generated with Rodin MCP and optimised with `assets/blender/optimize_rodin.py`.
 - Huruf: Bungee dan Barlow Condensed (SIL Open Font License).
 

@@ -7,6 +7,7 @@ using BarudakBogor.Gameplay;
 using BarudakBogor.Numerics;
 using BarudakBogor.Sim;
 using BarudakBogor.World;
+using ThreeNet;
 
 namespace BarudakBogor.Game.Views;
 
@@ -23,6 +24,7 @@ public partial class MainWindow
     private string? _captureDirectory;
     private Shot? _shot;
     private float _shotTimer;
+    private int _virtualPad;
     private string? _benchFile;
     private int _benchFrames;
     private float _benchSeconds;
@@ -38,7 +40,7 @@ public partial class MainWindow
         File.WriteAllText(_benchFile, $"Barudak Bogor frame rate, {Bounds.Width:0} x {Bounds.Height:0} window{Environment.NewLine}");
         foreach (Quality quality in Enum.GetValues<Quality>())
         {
-            _shots.Enqueue(new Shot("bench-" + quality, 12f, () =>
+            _shots.Enqueue(new Shot("bench-" + quality, 20f, () =>
             {
                 _settings.Quality = quality;
                 _character = CharacterId.Ujang;
@@ -162,7 +164,20 @@ public partial class MainWindow
             s.Update(0.02f, default);
             SkipDialog();
             _camera!.Snap(s);
-            _scriptedInput = new InputState { Move = new Vector2(0f, 1f) };
+            // Drive with a virtual controller: this exercises the whole pad path, not a shortcut.
+            PollGamepad();
+            _virtualPad = _pads?.SlotCount ?? 0;
+            _pads?.SetVirtual(_virtualPad, GamepadButton.None, rightTrigger: 1f);
+        }));
+        _shots.Enqueue(new Shot("kokpit", 4f, () =>
+        {
+            _camera!.View = Rendering.CameraView.Cockpit;
+            _camera.Snap(_session!);
+        }));
+        _shots.Enqueue(new Shot("lepas-pad", 0.2f, () =>
+        {
+            _camera!.View = Rendering.CameraView.Chase;
+            _pads?.SetVirtual(_virtualPad, GamepadButton.None, connected: false);
         }));
         _shots.Enqueue(new Shot("pasar-anyar", 9f, () =>
         {
@@ -215,6 +230,155 @@ public partial class MainWindow
             _session!.Weather.SetMist(0f);
             Scene(16.2f, WeatherKind.Berawan);
             Stand(PoiId.GangSelot, new Vector2(0f, 6f), 2.6f, 2.9f, 0.3f);
+        }));
+        _shots.Enqueue(new Shot("ciliwung", 6f, () =>
+        {
+            // On a bridge over the Ciliwung, looking down the river.
+            GameSession s = _session!;
+            Scene(8.4f, WeatherKind.Cerah);
+            Bridge bridge = s.Map.Bridges.OrderBy(b => Vector2.Distance(b.Path[0], s.Map[PoiId.TuguKujang].Position)).First();
+            Vector2 middle = bridge.Path[bridge.Path.Length / 2];
+            Vector2 along = Vector2.Normalize(bridge.Path[^1] - bridge.Path[0]);
+            Vector2 walk = middle + (MathUtil.Left(along) * (bridge.HalfWidth - 1.6f));
+            s.Player.Teleport(s.Map, walk, MathUtil.YawOf(along));
+            Relocate(s);
+            _camera!.Yaw = MathUtil.YawOf(along) + 0.95f;
+            _camera.Pitch = 0.24f;
+        }));
+        // The skeleton at work: walking, running and sitting on a motorbike, seen from the side.
+        foreach ((string name, bool run) in (ReadOnlySpan<(string, bool)>)[("jalan", false), ("lari", true)])
+        {
+            _shots.Enqueue(new Shot(name, 2.3f, () =>
+            {
+                GameSession s = _session!;
+                s.ExitVehicle(force: true);
+                Scene(9f, WeatherKind.Cerah);
+                Poi field = s.Map[PoiId.LapanganSempur];
+                s.Player.Teleport(s.Map, field.Position, 0.6f);
+                Relocate(s);
+                _camera!.Yaw = 0.6f + 2.1f;
+                _camera.Pitch = 0.12f;
+                _scriptedInput = new InputState { Move = new Vector2(0f, 1f), CameraYaw = 0.6f, Run = run };
+            }));
+        }
+
+        _shots.Enqueue(new Shot("naik-motor", 1.5f, () =>
+        {
+            GameSession s = _session!;
+            _scriptedInput = null;
+            Vehicle motor = s.SpawnVehicle(VehicleKind.Motor, s.Player.Ground + new Vector2(1.5f, 0f), 0.6f);
+            s.EnterVehicle(motor);
+            s.Update(0.02f, default);
+            _camera!.Snap(s);
+            _camera.Yaw = 0.6f + 2.1f;
+            _camera.Pitch = 0.12f;
+        }));
+        _shots.Enqueue(new Shot("turun-motor", 0.2f, () => _session!.ExitVehicle(force: true)));
+        _shots.Enqueue(new Shot("stasiun", 6f, () =>
+        {
+            // Stasiun Bogor: the train is in, doors open, under the zinc canopy.
+            GameSession s = _session!;
+            Scene(7.1f, WeatherKind.Berawan);
+            s.Train?.Reset();
+            Slab platform = s.Map.Slabs.First(slab => slab.Look == SlabLook.Concrete && slab.HalfDepth > 60f);
+            s.Map.Railway!.Sample(70f, out Vector2 heading, out _);
+            s.Player.Teleport(s.Map, platform.Center + (heading * 52f), MathUtil.YawOf(-heading));
+            Relocate(s);
+            _camera!.Yaw = MathUtil.YawOf(-heading) + 0.3f;
+            _camera.Pitch = 0.16f;
+        }));
+
+        // The real places of the city, each seen from the road in front of it.
+        void Visit(string name, PoiId place, float hours, WeatherKind weather, float back = 16f, float turn = 0.25f, float pitch = 0.06f)
+        {
+            _shots.Enqueue(new Shot(name, 6f, () =>
+            {
+                GameSession s = _session!;
+                Scene(hours, weather);
+                Poi poi = s.Map[place];
+                Vector2 toward = Vector2.Normalize(poi.Position - poi.RoadPoint);
+                s.Player.Teleport(s.Map, s.Map.ResolveCircle(poi.RoadPoint - (toward * back), 0.5f, out _), MathUtil.YawOf(toward));
+                Relocate(s);
+                _camera!.Yaw = MathUtil.YawOf(toward) + turn;
+                _camera.Pitch = pitch;
+            }));
+        }
+
+        Visit("istana-bogor", PoiId.IstanaBogor, 9f, WeatherKind.Cerah, -250f);
+        Visit("botani-square", PoiId.BotaniSquare, 13f, WeatherKind.Cerah);
+        Visit("suryakencana", PoiId.SuryaKencana, 17.3f, WeatherKind.Berawan, 22f, 0.9f);
+        Visit("air-mancur", PoiId.AirMancur, 16f, WeatherKind.Cerah, 10f);
+        _shots.Enqueue(new Shot("interior-warung", 5f, () =>
+        {
+            // Inside the bandrek stall, through the character's own eyes.
+            GameSession s = _session!;
+            Scene(16.4f, WeatherKind.Berawan);
+            Slab floor = s.Map.Slabs.First(slab => slab.Look == SlabLook.Concrete && Vector2.Distance(slab.Center, s.Map[PoiId.WarungBandrek].Position) < 16f);
+            Vector2 into = -MathUtil.Forward(s.Map[PoiId.WarungBandrek].Yaw);
+            s.Player.Teleport(s.Map, floor.Center - (into * 1.6f), MathUtil.YawOf(into));
+            Relocate(s);
+            _camera!.View = Rendering.CameraView.Cockpit;
+            _camera.Snap(s);
+            _camera.Pitch = 0.12f;
+        }));
+        _shots.Enqueue(new Shot("interior-tutup", 0.2f, () => _camera!.View = Rendering.CameraView.Chase));
+        Visit("museum-zoologi", PoiId.MuseumZoologi, 10f, WeatherKind.Cerah, 20f, 0.3f);
+        Visit("masjid-raya", PoiId.MasjidRaya, 16.5f, WeatherKind.Berawan, 26f, 0.3f, 0f);
+        _shots.Enqueue(new Shot("genangan", 7f, () =>
+        {
+            // After the rain: puddles on Pajajaran, with the sky in them.
+            GameSession s = _session!;
+            Scene(15.5f, WeatherKind.HujanDeras);
+            Poi poi = s.Map[PoiId.TuguKujang];
+            s.Player.Teleport(s.Map, poi.RoadPoint + new Vector2(3f, 14f), 0f);
+            Relocate(s);
+            _camera!.Yaw = 2.6f;
+            _camera.Pitch = 0.32f;
+        }));
+        _shots.Enqueue(new Shot("petir-siap", 4f, () =>
+        {
+            GameSession s = _session!;
+            Scene(18.3f, WeatherKind.BadaiPetir);
+            _camera!.Pitch = -0.12f;
+        }));
+        _shots.Enqueue(new Shot("petir", 0.07f, () =>
+        {
+            GameSession s = _session!;
+            Vector2 ahead = MathUtil.Forward(_camera!.Yaw);
+            s.Weather.Strike(s.Player.Ground + (ahead * 150f), blackout: false);
+        }));
+        _shots.Enqueue(new Shot("peta-kota", 1.2f, () =>
+        {
+            Pause(PauseTab.Map);
+            BigMap.Selected = PoiId.BotaniSquare;
+            SelectPlace(PoiId.BotaniSquare);
+        }));
+        _shots.Enqueue(new Shot("peta-kota-tutup", 0.2f, Resume));
+        _shots.Enqueue(new Shot("kolam", 6f, () =>
+        {
+            // The fishing pond on a still, bright morning.
+            GameSession s = _session!;
+            Scene(8.8f, WeatherKind.Cerah);
+            Poi pond = s.Map[PoiId.Empang];
+            Vector2 toWater = Vector2.Normalize(s.Map.Ponds[0].Center - pond.Position);
+            s.Player.Teleport(s.Map, pond.Position - (toWater * 3f), MathUtil.YawOf(toWater));
+            Relocate(s);
+            _camera!.Yaw = MathUtil.YawOf(toWater) + 0.25f;
+            _camera.Pitch = 0.22f;
+        }));
+        _shots.Enqueue(new Shot("ciliwung-hujan", 6f, () =>
+        {
+            // The same river in the rain, from the bank.
+            GameSession s = _session!;
+            Scene(16.2f, WeatherKind.HujanSedang);
+            Corridor river = s.Map.Corridors.First(c => c.Kind == CorridorKind.River);
+            river.Closest(s.Map[PoiId.LapanganSempur].Position, 2_000f, out _, out float along, out _);
+            Vector2 mid = river.Sample(along + 60f, out Vector2 flow, out _);
+            Vector2 bank = mid + (MathUtil.Left(flow) * (river.HalfWidth + 6f));
+            s.Player.Teleport(s.Map, bank, MathUtil.YawOf(-MathUtil.Left(flow)));
+            Relocate(s);
+            _camera!.Yaw = MathUtil.YawOf(-MathUtil.Left(flow)) + 0.7f;
+            _camera.Pitch = 0.3f;
         }));
         _shots.Enqueue(new Shot("mancing", 0.5f, () =>
         {
@@ -297,6 +461,40 @@ public partial class MainWindow
             _tab = PauseTab.Career;
             RefreshPause();
         }));
+        if (Program.CaptureOnly.Length > 0)
+        {
+            FilterShots();
+            return;
+        }
+
+        // The menus driven by the virtual controller: the right bumper turns to the next tab,
+        // then the d-pad walks the highlight down the settings.
+        _shots.Enqueue(new Shot("menu-pad-tab", 0.4f, () => _pads?.SetVirtual(_virtualPad, GamepadButton.RightBumper)));
+        _shots.Enqueue(new Shot("menu-pad", 0.75f, () => _pads?.SetVirtual(_virtualPad, GamepadButton.DPadDown)));
+        _shots.Enqueue(new Shot("menu-pad-lepas", 0.1f, () => _pads?.SetVirtual(_virtualPad, GamepadButton.None, connected: false)));
+    }
+
+    /// <summary>Cuts the tour down to the stops named with <c>--only</c>, after a first stop that starts a game.</summary>
+    private void FilterShots()
+    {
+        if (Program.CaptureOnly.Length == 0)
+        {
+            return;
+        }
+
+        Shot[] wanted = [.. _shots.Where(shot => Program.CaptureOnly.Contains(shot.Name))];
+        _shots.Clear();
+        _shots.Enqueue(new Shot("mulai", 0.5f, () =>
+        {
+            LoadingScreen.IsVisible = false;
+            _character = CharacterId.Ujang;
+            StartPlaying(null);
+            ClearToasts();
+        }));
+        foreach (Shot shot in wanted)
+        {
+            _shots.Enqueue(shot);
+        }
     }
 
     private void UpdateCapture(float dt, float realSeconds)
@@ -322,8 +520,9 @@ public partial class MainWindow
         }
 
         _shotTimer -= dt > 0f ? dt : 0.016f;
-        // The first seconds after a quality switch include renderer start-up; leave them out.
-        if (_benchFile is not null && _shotTimer < _shot.Seconds - 3f)
+        // The first seconds after a quality switch include renderer start-up and the dynamic
+        // resolution settling; leave them out.
+        if (_benchFile is not null && _shotTimer < _shot.Seconds - 10f)
         {
             // Real elapsed time: the simulation step is capped at 50 ms, which would hide anything below 20 fps.
             _benchFrames++;

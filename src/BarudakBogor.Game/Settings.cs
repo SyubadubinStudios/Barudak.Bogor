@@ -26,6 +26,9 @@ public sealed class Settings
 
     public bool ShowStats { get; set; }
 
+    /// <summary>Lower the render resolution when the GPU cannot keep up, and raise it again when it can.</summary>
+    public bool DynamicResolution { get; set; } = true;
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BarudakBogor", "settings.json");
 

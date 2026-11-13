@@ -32,6 +32,9 @@ public sealed class MapControl : Control
     private static readonly IPen ThinRoadPen = new Pen(new SolidColorBrush(Color.Parse("#8E9A97")), 1.1);
     private static readonly IPen ThinArterialPen = new Pen(new SolidColorBrush(Color.Parse("#D6CFAF")), 1.8);
     private static readonly IPen OutlinePen = new Pen(Dark, 2);
+    private static readonly IPen RiverPen = new Pen(new SolidColorBrush(Color.Parse("#2F7C86")), 5, lineCap: PenLineCap.Round);
+    private static readonly IPen ThinRiverPen = new Pen(new SolidColorBrush(Color.Parse("#2F7C86")), 2.4, lineCap: PenLineCap.Round);
+    private static readonly IPen RailPen = new Pen(new SolidColorBrush(Color.Parse("#2A2320")), 2.2, new DashStyle([3, 2], 0));
     private static readonly IBrush[] MarkerBrushes =
     [
         Gold,
@@ -125,6 +128,18 @@ public sealed class MapControl : Control
             context.DrawEllipse(WaterBrush, null, ToScreen(pond.Center), r, r);
         }
 
+        foreach (Corridor corridor in map.Corridors)
+        {
+            IPen pen = corridor.Kind == CorridorKind.River ? RiverPen : RailPen;
+            for (int i = 0; i < corridor.Points.Length - 1; i++)
+            {
+                if (Vector2.DistanceSquared(corridor.Points[i], focus) < range * range * 2.4f)
+                {
+                    context.DrawLine(pen, ToScreen(corridor.Points[i]), ToScreen(corridor.Points[i + 1]));
+                }
+            }
+        }
+
         Vector2 reach = new(range * 1.1f);
         map.Roads.ForEachSegment(focus - reach, focus + reach, (edge, segment) =>
         {
@@ -194,6 +209,16 @@ public sealed class MapControl : Control
         {
             double r = Math.Max(2, pond.Radius * scale);
             context.DrawEllipse(WaterBrush, null, FullToScreen(pond.Center, bounds), r, r);
+        }
+
+        foreach (Corridor corridor in map.Corridors)
+        {
+            IPen pen = corridor.Kind == CorridorKind.River ? ThinRiverPen : RailPen;
+            // Every third point is plenty at map scale.
+            for (int i = 0; i < corridor.Points.Length - 1; i += 3)
+            {
+                context.DrawLine(pen, FullToScreen(corridor.Points[i], bounds), FullToScreen(corridor.Points[Math.Min(i + 3, corridor.Points.Length - 1)], bounds));
+            }
         }
 
         bool close = _zoom > 3.5;

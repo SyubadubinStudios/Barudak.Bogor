@@ -85,6 +85,32 @@ Reach 100 reputation in a career to earn its title. The game continues afterward
 | Pengusaha Bandrek | Selling cups and upgrading the business |
 | Influencer Kuliner | Paid photos, food deliveries, karaoke |
 | Pemancing Legendaris | Catching fish, winning the tournament |
-| Walikota | Story missions, passenger orders, touring, badminton. Finishing all eight missions grants it outright |
+| Walikota | Story missions, passenger orders, touring, badminton. Finishing all ten story missions grants it outright |
 
 Driving at pedestrians costs Walikota reputation. They always jump clear.
+
+## The city
+
+The centre of the map is laid out like the real Bogor, measured from Tugu Kujang: the loop round the Botanical Gardens (Pajajaran, Otista, Juanda, Jalak Harupat), the main streets, the Ciliwung and the commuter railway follow their true lines (map data © OpenStreetMap contributors). Side streets are generated.
+
+![City map](../images/peta-kota.png)
+
+Places you can find and fast-travel to include Bogor Palace, the museums (Zoology, PETA, Soil and Agriculture), the malls (Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Ekalokasari, Lotte Mart, Bogor Great Mall), the Suryakencana gate, the Fountain, Sempur Field, Pajajaran Sports Ground, Bogor Station and Baranangsiang Terminal. Their buildings are generic; there are no signs yet.
+
+![Bogor Station](../images/stasiun.png)
+
+The commuter train leaves Bogor Station every few minutes and comes back. It stops for anyone on the track, and traffic waits at the level crossings.
+
+## More missions
+
+| | Mission | Starts at | What you do |
+|---|---|---|---|
+| 9 | What's on the Flash Drive | IPB Dramaga Campus | Open the drive (after The Last Cilok), find the survey stakes at the Gardens gate, get the evidence home |
+| 10 | The Town Meeting | Tugu Kujang | Fetch Mang Udin, Haji Dadang and Abah Aceng, then face Mr Beton. Three ways to settle it |
+| Side | Lost Parcels | Selot Alley | Three deliveries by motorbike against the clock |
+| Side | The Runaway Deer | Palace Deer Lawn | Coax the deer home on foot, without running |
+| Side | A Very Special Horse Cart | Botanical Gardens Gate | A slow carriage round; go too fast and the ice cream falls |
+
+## Controller and camera
+
+A controller works in play and in the menus (d-pad moves the highlight, A presses, B goes back, LB/RB change tab). **V** or d-pad right switches between the chase camera and first person. In closed vehicles the first-person lens sits at the nose, because the models have no interiors yet.

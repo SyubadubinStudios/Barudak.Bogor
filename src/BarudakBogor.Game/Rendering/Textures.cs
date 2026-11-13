@@ -23,6 +23,8 @@ public sealed class WorldTextures
     public const int RoofConcrete = 57;
     public const int RoofZinc = 58;
     public const int RoofDark = 59;
+    public const int PlasterWhite = 60;
+    public const int Copper = 61;
 
     private readonly record struct Variant(int Wall, int Trim, int Glass, int Kind);
 
@@ -39,6 +41,27 @@ public sealed class WorldTextures
         new(0xD8D2C2, 0x4A3526, 0x1E2A30, 6),
         new(0xD9C7A3, 0xB5503A, 0x355869, 7),
     ];
+
+    private Shader? _ground;
+    private bool _groundFailed;
+
+    /// <summary>The ground and road surface shader, or null when it did not compile on this machine.</summary>
+    public Shader? GroundShader(Scene scene)
+    {
+        if (_ground is null && !_groundFailed)
+        {
+            try
+            {
+                _ground = scene.CreateShader(Rendering.GroundShader.Source, name: "barudak.ground");
+            }
+            catch (ThreeNetException)
+            {
+                _groundFailed = true;
+            }
+        }
+
+        return _ground;
+    }
 
     public WorldTextures(Scene scene)
     {
@@ -61,6 +84,8 @@ public sealed class WorldTextures
         PaintRoof(color, RoofConcrete, 0x8E8C86, 0x7C7A75, ridges: 0);
         PaintRoof(color, RoofZinc, 0x9AA3A6, 0x7F898C, ridges: 16);
         PaintRoof(color, RoofDark, 0x3B302B, 0x2C2420, ridges: 8);
+        PaintRoof(color, PlasterWhite, 0xF4F1E8, 0xE4DFD2, ridges: 0);
+        PaintRoof(color, Copper, 0x5FA08A, 0x3F7F6C, ridges: 4);
 
         Texture atlas = scene.CreateTexture(AtlasSize, AtlasSize, color);
         atlas.SetSampler(WrapMode.ClampToEdge, WrapMode.ClampToEdge, true, true, 4);
@@ -78,11 +103,10 @@ public sealed class WorldTextures
         RoadToll = Road(scene, lanes: 2, edgeLines: true, paving: false);
         RoadGang = Road(scene, lanes: 0, edgeLines: false, paving: true);
         Asphalt = Road(scene, lanes: 0, edgeLines: false, paving: false);
-        Water = scene.CreateMaterial(MaterialOptions.Pbr(new Vector4(0.05f, 0.16f, 0.17f, 0.82f), 0f, 0.08f) with
-        {
-            AlphaMode = AlphaMode.Blend,
-            DepthWrite = false,
-        });
+        Rail = Track(scene);
+        _scene = scene;
+        // The Ciliwung runs brown-green; the ponds are clearer.
+        Water = CreateWater(pond: false, mud: 0.75f, default, 0f);
     }
 
     public Material Buildings { get; }
@@ -95,7 +119,43 @@ public sealed class WorldTextures
 
     public Material Asphalt { get; }
 
+    /// <summary>Railway: ballast, sleepers and two rails.</summary>
+    public Material Rail { get; }
+
     public Material Water { get; }
+
+    private readonly Scene _scene;
+    private readonly List<Material> _waters = [];
+    private Shader? _waterShader;
+    private bool _waterFailed;
+
+    /// <summary>A water surface: the river ribbon, or a pond of the given centre and radius.</summary>
+    public Material CreateWater(bool pond, float mud, Vector2 centre, float radius)
+    {
+        if (_waterShader is null && !_waterFailed)
+        {
+            try
+            {
+                _waterShader = _scene.CreateShader(WaterShader.Source, name: "barudak.water");
+            }
+            catch (ThreeNetException)
+            {
+                // Plain tinted water is still water.
+                _waterFailed = true;
+            }
+        }
+
+        Material material = _scene.CreateMaterial(MaterialOptions.Pbr(new Vector4(0.05f, 0.16f, 0.17f, 0.82f), 0f, 0.06f) with
+        {
+            AlphaMode = AlphaMode.Blend,
+            DepthWrite = false,
+            Shader = _waterShader,
+            Custom0 = new Vector4(0f, pond ? 1f : 0f, mud, radius),
+            Custom1 = new Vector4(centre.X, centre.Y, 0f, 0f),
+        });
+        _waters.Add(material);
+        return material;
+    }
 
     public static int VariantCount => Variants.Length;
 
@@ -122,12 +182,18 @@ public sealed class WorldTextures
     }
 
     /// <summary>Wet roads are smoother; night and blackouts decide how many windows glow.</summary>
-    public void SetConditions(float wetness, float windowGlow)
+    public void SetConditions(float wetness, float windowGlow, float rain = 0f, Shader? shader = null)
     {
         float roughness = MathUtil.Lerp(0.92f, 0.3f, wetness);
+        Vector4 custom = new(wetness, 1f, rain, 0f);
         foreach (Material road in (ReadOnlySpan<Material>)[RoadMain, RoadToll, RoadGang, Asphalt])
         {
-            road.Update(options => options with { Roughness = roughness });
+            road.Update(options => options with { Roughness = roughness, Shader = shader, Custom0 = custom });
+        }
+
+        foreach (Material water in _waters)
+        {
+            water.Update(options => options with { Custom0 = new Vector4(rain, options.Custom0.Y, options.Custom0.Z, options.Custom0.W) });
         }
 
         Buildings.Update(options => options with { EmissiveIntensity = windowGlow * 1.2f });
@@ -163,6 +229,37 @@ public sealed class WorldTextures
         Texture texture = scene.CreateTexture(width, height, pixels);
         texture.SetSampler(WrapMode.ClampToEdge, WrapMode.Repeat, true, true, 8);
         return scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.92f) with { BaseColorMap = texture });
+    }
+
+    private static Material Track(Scene scene)
+    {
+        const int width = 64;
+        const int height = 128;
+        byte[] pixels = new byte[width * height * 4];
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float grain = Hash.Unit(x, y, 91u);
+                // Crushed stone, rust-stained between the rails.
+                Vector3 c = new Vector3(0.36f, 0.34f, 0.31f) * (0.75f + (grain * 0.5f));
+                if (x is >= 8 and < 56 && y % 16 < 6)
+                {
+                    c = new Vector3(0.2f, 0.16f, 0.13f) * (0.85f + (grain * 0.3f));
+                }
+
+                if (x is (>= 18 and <= 20) or (>= 43 and <= 45))
+                {
+                    c = new Vector3(0.62f, 0.63f, 0.66f) * (0.9f + (grain * 0.15f));
+                }
+
+                Put(pixels, width, x, y, c);
+            }
+        }
+
+        Texture texture = scene.CreateTexture(width, height, pixels);
+        texture.SetSampler(WrapMode.ClampToEdge, WrapMode.Repeat, true, true, 8);
+        return scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.85f) with { BaseColorMap = texture });
     }
 
     private static void PaintRoof(byte[] atlas, int tile, int light, int dark, int ridges)

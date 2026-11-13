@@ -433,3 +433,6 @@ saves/
 *_History.json
 # Build output of the packaging scripts
 /dist/
+
+# Three.Net builds not yet on nuget.org (see nuget.config)
+!packages-local/*.nupkg

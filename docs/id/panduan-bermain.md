@@ -85,6 +85,32 @@ Capai 100 reputasi di satu karier untuk meraih gelarnya. Game tetap berlanjut se
 | Pengusaha Bandrek | Menjual bandrek dan menaikkan kelas usaha |
 | Influencer Kuliner | Foto yang dibayar, antar makanan, karaoke |
 | Pemancing Legendaris | Menangkap ikan, menang turnamen |
-| Walikota | Misi cerita, order penumpang, touring, badminton. Menamatkan delapan misi langsung memberi gelar ini |
+| Walikota | Misi cerita, order penumpang, touring, badminton. Menamatkan sepuluh misi cerita langsung memberi gelar ini |
 
 Menabrakkan kendaraan ke arah pejalan kaki mengurangi reputasi Walikota. Mereka selalu sempat loncat.
+
+## Kota
+
+Pusat peta disusun seperti Bogor yang asli, diukur dari Tugu Kujang: lingkar Kebun Raya (Pajajaran, Otista, Juanda, Jalak Harupat), jalan-jalan utama, Ciliwung, dan rel KRL mengikuti garis sebenarnya (data peta © kontributor OpenStreetMap). Jalan kecil dibangkitkan.
+
+![Peta kota](../images/peta-kota.png)
+
+Tempat yang bisa didatangi dan dituju dengan ojek antara lain Istana Bogor, museum (Zoologi, PETA, Tanah dan Pertanian), mal (Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Ekalokasari, Lotte Mart, Bogor Great Mall), Lawang Suryakencana, Air Mancur, Lapangan Sempur, GOR Pajajaran, Stasiun Bogor, dan Terminal Baranangsiang. Bangunannya masih generik; papan nama belum ada.
+
+![Stasiun Bogor](../images/stasiun.png)
+
+KRL berangkat dari Stasiun Bogor tiap beberapa menit lalu kembali. Kereta berhenti kalau ada orang di rel, dan lalu lintas menunggu di perlintasan.
+
+## Misi tambahan
+
+| | Misi | Mulai di | Yang dilakukan |
+|---|---|---|---|
+| 9 | Isi Flashdisk | Kampus IPB Dramaga | Buka flashdisk (setelah Cilok Terakhir), temukan patok ukur di gerbang Kebun Raya, bawa buktinya pulang |
+| 10 | Rapat Warga | Tugu Kujang | Ajak Mang Udin, Haji Dadang, dan Abah Aceng, lalu hadapi Pak Beton. Ada tiga cara menyelesaikannya |
+| Sampingan | Paket Nyasar | Gang Selot | Tiga antaran naik motor, berpacu dengan waktu |
+| Sampingan | Rusa Kabur | Padang Rusa Istana | Giring rusa pulang dengan jalan kaki, tanpa lari |
+| Sampingan | Delman Istimewa | Gerbang Kebun Raya | Keliling pelan-pelan; terlalu cepat, es krimnya jatuh |
+
+## Gamepad dan kamera
+
+Gamepad bisa dipakai saat bermain dan di menu (d-pad memindahkan sorotan, A menekan, B kembali, LB/RB ganti tab). **V** atau d-pad kanan berpindah antara kamera belakang dan orang pertama. Di kendaraan tertutup lensa orang pertama ada di moncong, karena modelnya belum punya interior.

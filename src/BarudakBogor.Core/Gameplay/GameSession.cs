@@ -33,6 +33,7 @@ public sealed class GameSession
     private float _photoCooldown;
     private float _crashCooldown;
     private float _dodgeCooldown;
+    private float _chatterTimer = 12f;
 
     public GameSession(WorldMap map, CharacterId character = CharacterId.Ujang, uint seed = 1)
     {
@@ -74,6 +75,13 @@ public sealed class GameSession
             default,
             (int)career));
 
+        if (map.Railway is { } railway)
+        {
+            Train = new Train(railway, map.Crossings);
+            Train.Honked += at => Emit(new GameEvent(GameEventKind.Horn, L.Empty, at.ToWorld(map.Terrain.HeightAt(at))));
+            Population.Train = Train;
+        }
+
         _phase = Clock.Phase;
         SpawnParkedVehicles();
         CreateWorldInteractables();
@@ -106,6 +114,9 @@ public sealed class GameSession
     public TouringRace Touring { get; } = new();
 
     public BandrekBusiness Business { get; } = new();
+
+    /// <summary>The commuter train, when the map has a railway.</summary>
+    public Train? Train { get; }
 
     /// <summary>Vehicles that exist for the player: parked ones, mission ones, the one being driven.</summary>
     public IReadOnlyList<Vehicle> Vehicles => _vehicles;
@@ -362,6 +373,7 @@ public sealed class GameSession
         UpdatePlayer(dt, modal ? default : input);
         UpdateIdleVehicles(dt);
         Population.Update(dt, Player, Clock, Weather);
+        Train?.Update(dt, Player.Ground, Player.Vehicle?.Spec.Radius ?? Player.Radius);
         ResolveTrafficContacts();
 
         Missions.Update(dt);
@@ -369,11 +381,32 @@ public sealed class GameSession
         Touring.Update(this, dt);
         Business.Update(this, dt);
 
+        UpdateChatter(dt, modal);
         UpdateFocus();
         if (!modal && input.Interact)
         {
             Interact();
         }
+    }
+
+    /// <summary>Now and then a passer-by has something to say to a player on foot.</summary>
+    private void UpdateChatter(float dt, bool modal)
+    {
+        _chatterTimer -= dt;
+        if (_chatterTimer > 0f || modal || Player.Vehicle is not null)
+        {
+            return;
+        }
+
+        if (Population.Greet(Player.Ground, 5f) is not { } speaker)
+        {
+            // Nobody close: look again soon rather than after a full pause.
+            _chatterTimer = 1.5f;
+            return;
+        }
+
+        _chatterTimer = _rng.Range(22f, 45f);
+        Emit(new GameEvent(GameEventKind.Chatter, Chatter.Line(speaker, Clock, Weather, ref _rng), speaker.Position));
     }
 
     private void UpdateDialog(Dialog dialog, in InputState input)
@@ -456,6 +489,19 @@ public sealed class GameSession
             if (other != Player.Vehicle)
             {
                 PushApart(other, ref position, radius);
+            }
+        }
+
+        // The train is a wall: step or bounce off its side, never through it.
+        if (Train is { } train && train.Track.Closest(position, Train.HalfWidth + radius, out float lateral, out float along, out _)
+            && along > train.Tail - 0.5f && along < train.Tail + train.Length + 0.5f)
+        {
+            train.Track.Sample(along, out Vector2 heading, out _);
+            Vector2 away = MathUtil.Left(heading) * (lateral >= 0f ? 1f : -1f);
+            position += away * (Train.HalfWidth + radius - MathF.Abs(lateral));
+            if (Player.Vehicle is { } stopped && Vector2.Dot(stopped.Velocity, away) < 0f)
+            {
+                stopped.Velocity -= away * Vector2.Dot(stopped.Velocity, away) * 1.2f;
             }
         }
 

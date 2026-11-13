@@ -29,6 +29,9 @@ internal static class Ui
         (new("PEMERAN PEMBANTU", "SUPPORTING CAST"), new(
             "Seekor embé bermukena · Kucing belepotan bumbu kacang · Rusa Istana · Monyet Puncak pencari jajan",
             "A goat in a prayer robe · A cat covered in peanut sauce · The Palace deer · Snack-hunting Puncak macaques")),
+        (new("PETA KOTA", "CITY MAP"), new(
+            "Jalan utama, Ciliwung, rel, dan letak tempat dari data © kontributor OpenStreetMap (ODbL)",
+            "Main roads, the Ciliwung, the railway and the places from data © OpenStreetMap contributors (ODbL)")),
         (new("MESIN GRAFIS", "GRAPHICS ENGINE"), new("Three.Net — inti Rust (wgpu)", "Three.Net — Rust (wgpu) core")),
         (new("ANTARMUKA", "INTERFACE"), new("Avalonia UI · .NET 10", "Avalonia UI · .NET 10")),
         (new("MODEL 3D", "3D MODELS"), new("Blender (skrip prosedural) · Rodin / Hyper3D", "Blender (procedural scripts) · Rodin / Hyper3D")),
@@ -78,6 +81,7 @@ internal static class Ui
     public static readonly L EndingDetail = new("Bogor bangga padamu. Ceritamu masih bisa lanjut.", "Bogor is proud of you. Your story can go on.");
     public static readonly L MissionLabel = new("MISI", "MISSION");
     public static readonly L StoryLabel = new("CERITA", "STORY");
+    public static readonly L SideMission = new("Misi sampingan", "Side mission");
     public static readonly L Locked = new("Terkunci: selesaikan \"{0}\" dulu", "Locked: finish \"{0}\" first");
     public static readonly L Available = new("Tersedia di {0}", "Available at {0}");
     public static readonly L Active = new("Sedang berjalan", "In progress");
@@ -98,6 +102,24 @@ internal static class Ui
     public static readonly L SellingDetail = new("Stok {0} gelas · terjual {1}", "{0} cups left · {1} sold");
     public static readonly L Blackout = new("MATI LAMPU", "BLACKOUT");
     public static readonly L Misty = new("berkabut", "misty");
+    public static readonly L ViewCockpit = new("Kamera: orang pertama", "Camera: first person");
+    public static readonly L ViewChase = new("Kamera: dari belakang", "Camera: chase");
+    public static readonly L PadTitle = new("GAMEPAD", "CONTROLLER");
+
+    public static readonly (string Keys, L Action)[] PadControls =
+    [
+        ("L STICK", new("Jalan / setir", "Walk / steer")),
+        ("R STICK", new("Putar kamera", "Look around")),
+        ("RT · LT", new("Gas · rem", "Throttle · brake")),
+        ("A", new("Lompat · aksi · lanjut dialog", "Jump · action · next line")),
+        ("X", new("Naik/turun kendaraan · bicara · mulai misi", "Enter/leave vehicle · talk · start mission")),
+        ("B", new("Batal · keluar mini game", "Cancel · leave a mini game")),
+        ("Y", new("Klakson", "Horn")),
+        ("LB · RB", new("Lari · rem tangan", "Run · handbrake")),
+        ("D-PAD", new("Atas: ojol · Bawah: potret · Kanan: ganti kamera · pilihan dialog", "Up: ojol · Down: photo · Right: camera view · dialogue choices")),
+        ("START · SELECT", new("Menu · peta", "Menu · map")),
+        ("MENU", new("D-pad pilih · A tekan · B kembali · LB/RB ganti tab · Y tempat berikutnya di peta · stik kanan gulir", "D-pad moves · A presses · B back · LB/RB change tab · Y next place on the map · right stick scrolls")),
+    ];
     public static readonly L Music = new("Musik: {0}", "Music: {0}");
     public static readonly L StartHint = new(
         "Datangi tanda emas di dekat Tugu Kujang untuk memulai cerita. F1 untuk bantuan.",
@@ -111,6 +133,10 @@ internal static class Ui
         "Hemat (economy) suits laptops without a graphics card, Tinggi (high) a dedicated GPU.");
     public static readonly L Sound = new("Suara: {0}", "Sound: {0}");
     public static readonly L Volume = new("Volume: {0}%", "Volume: {0}%");
+    public static readonly L DynamicResolution = new("Resolusi adaptif: {0}", "Dynamic resolution: {0}");
+    public static readonly L DynamicResolutionNote = new(
+        "Resolusi render turun sendiri saat GPU kewalahan supaya permainan tetap lancar, lalu naik lagi saat longgar.",
+        "The render resolution drops by itself when the GPU cannot keep up, so the game stays smooth, and rises again when there is room.");
     public static readonly L Stats = new("Statistik render (F3): {0}", "Render statistics (F3): {0}");
     public static readonly L On = new("nyala", "on");
     public static readonly L Off = new("mati", "off");
@@ -134,6 +160,7 @@ internal static class Ui
         ("H", new("Klakson", "Horn")),
         ("O", new("Aplikasi ojol nyala/mati (di atas motor)", "Ojol app on/off (on a motorbike)")),
         ("P", new("Potret (Fotografi Hujan Bogor)", "Take a photo (Bogor rain photography)")),
+        ("V", new("Ganti kamera: belakang / orang pertama", "Camera view: chase / first person")),
         ("M / ESC", new("Peta dan menu", "Map and menu")),
         ("1 2 3 4", new("Pilihan dialog", "Dialogue choices")),
         ("A S D F", new("Karaoke · A dan D untuk badminton", "Karaoke · A and D for badminton")),

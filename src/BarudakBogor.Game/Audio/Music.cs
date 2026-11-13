@@ -29,6 +29,95 @@ public static class Music
     /// <summary>The night and rain piece: 8 slow bars at 66 beats per minute.</summary>
     public static float[] Night() => Compose(66f, 8, lively: false, seed: 29);
 
+    /// <summary>
+    /// The angkot's radio: a dangdut number in A minor at 126 beats per minute, with the
+    /// "dang-dut" of the kendang, a walking bass, a mandolin tremolo and a suling on top.
+    /// Thinned out afterwards to sound like a small speaker above the windscreen.
+    /// </summary>
+    public static float[] Dangdut()
+    {
+        const float tempo = 126f;
+        const int bars = 16;
+        float beat = 60f / tempo;
+        float[] mix = new float[(int)(bars * 4 * beat * Rate)];
+        Rng rng = new(47);
+        // Harmonic minor on A; the chords go i - i - iv - V, the backbone of a thousand dangdut songs.
+        int[] minor = [0, 2, 3, 5, 7, 8, 11];
+        float Note(int degree)
+        {
+            int octave = (int)MathF.Floor(degree / 7f);
+            return 220f * MathF.Pow(2f, octave + (minor[degree - (octave * 7)] / 12f));
+        }
+
+        int[] roots = [0, 0, 3, 4];
+        int melody = 4;
+        for (int bar = 0; bar < bars; bar++)
+        {
+            float start = bar * 4 * beat;
+            int root = roots[bar % 4];
+
+            // Bass: root, fifth on the push, octave to lead into the next bar.
+            Pluck(mix, start, beat * 1.4f, Note(root - 14), 0.34f);
+            Pluck(mix, start + (beat * 1.5f), beat, Note(root - 10), 0.26f);
+            Pluck(mix, start + (beat * 2.5f), beat * 0.6f, Note(root - 14), 0.26f);
+            Pluck(mix, start + (beat * 3f), beat * 0.9f, Note(root - 7), 0.3f);
+
+            // Kendang: "dut" bends up on one, "dang" lands on four, "tak" fills the gaps.
+            Drum(mix, start, 70f, 0.42f, bend: true);
+            Tak(mix, start + (beat * 1f), 0.2f);
+            Tak(mix, start + (beat * 1.5f), 0.14f);
+            Tak(mix, start + (beat * 2f), 0.2f);
+            Drum(mix, start + (beat * 2.5f), 150f, 0.2f, bend: false);
+            Drum(mix, start + (beat * 3f), 96f, 0.4f, bend: false);
+            Tak(mix, start + (beat * 3.5f), 0.16f);
+            for (int i = 0; i < 8; i++)
+            {
+                Shaker(mix, start + (i * beat * 0.5f), i % 2 == 1 ? 0.07f : 0.03f);
+            }
+
+            // Mandolin: the chord in broken, trembling plucks on the off-beats.
+            for (int i = 0; i < 4; i++)
+            {
+                int tone = root + (i % 2 == 0 ? 2 : 4);
+                for (int k = 0; k < 3; k++)
+                {
+                    Pluck(mix, start + (i * beat) + (beat * 0.5f) + (k * beat * 0.125f), beat * 0.3f, Note(tone), 0.07f);
+                }
+            }
+
+            // Suling: sings every other phrase, mostly by step, landing on a chord tone at the bar.
+            if (bar / 4 % 2 == 0 || bar % 4 >= 2)
+            {
+                for (int half = 0; half < 4; half++)
+                {
+                    int move = rng.Range(0, 6) switch { 0 => -2, 1 or 2 => -1, 3 or 4 => 1, _ => 2 };
+                    melody = half == 0 ? root + 7 + (rng.Chance(0.5f) ? 2 : 4) - 7 + 7 : Math.Clamp(melody + move, 5, 13);
+                    float length = rng.Chance(0.3f) ? beat * 0.5f : beat;
+                    // A quick grace note from the step below: the cengkok of dangdut singing.
+                    Flute(mix, start + (half * beat), beat * 0.12f, Note(melody - 1), 0.08f);
+                    Flute(mix, start + (half * beat) + (beat * 0.1f), length * 0.9f, Note(melody), 0.13f);
+                    if (length < beat * 0.8f)
+                    {
+                        Flute(mix, start + (half * beat) + (beat * 0.5f), beat * 0.45f, Note(melody + 1), 0.11f);
+                    }
+                }
+            }
+        }
+
+        // A small radio has no bass and a hard edge: take the lows out, then clip gently.
+        float low = 0f;
+        for (int pass = 0; pass < 2; pass++)
+        {
+            for (int i = 0; i < mix.Length; i++)
+            {
+                low += (mix[i] - low) * 0.035f;
+                mix[i] = MathF.Tanh((mix[i] - (low * 0.85f)) * 1.6f) * 0.62f;
+            }
+        }
+
+        return mix;
+    }
+
     private static float[] Compose(float tempo, int bars, bool lively, uint seed)
     {
         float beat = 60f / tempo;

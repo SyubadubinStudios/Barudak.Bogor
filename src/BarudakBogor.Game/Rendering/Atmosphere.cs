@@ -3,6 +3,8 @@ using BarudakBogor.Gameplay;
 using BarudakBogor.Numerics;
 using BarudakBogor.World;
 using ThreeNet;
+using ThreeNet.Effects;
+using ThreeNet.Interop;
 
 namespace BarudakBogor.Game.Rendering;
 
@@ -24,6 +26,17 @@ public sealed class Atmosphere
     private readonly Vector3[] _drops = new Vector3[MaxDrops];
     private readonly Matrix4x4[] _dropMatrices = new Matrix4x4[MaxDrops];
     private readonly List<(Vector2 Position, float Yaw)> _nearLamps = [];
+    private const int FogLayers = 4;
+    private const int CloudCount = 46;
+    private readonly Node _fogSheets;
+    private readonly Material _fogMaterial;
+    private readonly Matrix4x4[] _fogMatrices = new Matrix4x4[FogLayers];
+    private readonly Node _cloudNode;
+    private readonly Material _cloudMaterial;
+    private readonly (Vector3 Offset, Vector3 Size)[] _cloudPuffs;
+    private readonly Matrix4x4[] _cloudMatrices;
+    private Vector2 _cloudDrift;
+    private readonly CloudLayer? _cloudLayer;
     private float _lampTimer;
     private int _activeDrops = -1;
 
@@ -49,10 +62,178 @@ public sealed class Atmosphere
             _drops[i] = new Vector3(rng.Range(0f, RainBox), rng.Range(0f, RainBox), rng.Range(0f, RainBox));
         }
 
+        // Layered mist: wide soft sheets lying at fixed heights, so climbing Puncak means driving
+        // up through one bank of fog after another rather than through an even haze.
+        const int size = 64;
+        byte[] soft = new byte[size * size * 4];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = ((x + 0.5f) / size * 2f) - 1f;
+                float dy = ((y + 0.5f) / size * 2f) - 1f;
+                float fade = MathUtil.Saturate(1f - MathF.Sqrt((dx * dx) + (dy * dy)));
+                float wisp = 0.55f + (0.45f * Noise.Value(x / 9f, y / 9f, 71u));
+                int k = ((y * size) + x) * 4;
+                soft[k] = soft[k + 1] = soft[k + 2] = 255;
+                soft[k + 3] = (byte)(255f * fade * fade * wisp);
+            }
+        }
+
+        Texture mist = scene.CreateTexture(size, size, soft);
+        mist.SetSampler(WrapMode.ClampToEdge, WrapMode.ClampToEdge, true, false, 1);
+        _fogMaterial = scene.CreateMaterial(MaterialOptions.Basic(new Vector4(0.8f, 0.84f, 0.88f, 0f)) with
+        {
+            BaseColorMap = mist,
+            AlphaMode = AlphaMode.Blend,
+            DepthWrite = false,
+            CullMode = CullMode.None,
+        });
+        Vertex[] sheet =
+        [
+            new(new Vector3(-0.5f, 0f, -0.5f), Vector3.UnitY, new Vector2(0f, 0f)),
+            new(new Vector3(0.5f, 0f, -0.5f), Vector3.UnitY, new Vector2(1f, 0f)),
+            new(new Vector3(0.5f, 0f, 0.5f), Vector3.UnitY, new Vector2(1f, 1f)),
+            new(new Vector3(-0.5f, 0f, 0.5f), Vector3.UnitY, new Vector2(0f, 1f)),
+        ];
+        _fogSheets = scene.AddMesh(scene.CreateGeometry(sheet, [0u, 2u, 1u, 0u, 3u, 2u]), _fogMaterial, name: "kabut");
+        _fogSheets.CastShadow = false;
+        _fogSheets.ReceiveShadow = false;
+        _fogSheets.Visible = false;
+
+        // Clouds with body: heaps of low-poly puffs that drift on the wind, lit from above.
+        _cloudMaterial = scene.CreateMaterial(MaterialOptions.Lambert(Vector4.One));
+        _cloudNode = scene.AddMesh(scene.CreateSphereGeometry(1f, 9, 6), _cloudMaterial, name: "awan");
+        _cloudNode.CastShadow = false;
+        _cloudNode.ReceiveShadow = false;
+        _cloudNode.Visible = false;
+        List<(Vector3, Vector3)> puffs = [];
+        Rng cloudRng = new(909);
+        for (int i = 0; i < CloudCount; i++)
+        {
+            Vector3 heart = new(cloudRng.Range(-CloudField, CloudField), cloudRng.Range(0f, 260f), cloudRng.Range(-CloudField, CloudField));
+            float bulk = cloudRng.Range(0.7f, 1.6f);
+            int lumps = cloudRng.Range(4, 8);
+            for (int k = 0; k < lumps; k++)
+            {
+                Vector3 offset = heart + new Vector3(cloudRng.Range(-190f, 190f) * bulk, cloudRng.Range(-12f, 45f) * bulk, cloudRng.Range(-110f, 110f) * bulk);
+                puffs.Add((offset, new Vector3(cloudRng.Range(90f, 170f), cloudRng.Range(38f, 70f), cloudRng.Range(80f, 140f)) * bulk));
+            }
+        }
+
+        _cloudPuffs = [.. puffs];
+
+        // Real volumes for the highest quality level: a layer the view ray is marched through.
+        try
+        {
+            _cloudLayer = new CloudLayer(scene, altitude: 800f, radius: 6_500f);
+            _cloudLayer.Node.Visible = false;
+        }
+        catch (ThreeNetException)
+        {
+            // The low-poly puffs stay.
+            _cloudLayer = null;
+        }
+        _cloudMatrices = new Matrix4x4[_cloudPuffs.Length];
+
         for (int i = 0; i < LampLights; i++)
         {
             _lamps[i] = scene.AddLight(Light.Point(new Vector3(1f, 0.74f, 0.42f), 60f, 26f) with { Enabled = false }, name: "lamp");
         }
+    }
+
+    private const float CloudField = 4_200f;
+
+    /// <summary>Layered mist sheets and clouds with body (off on the lowest quality level).</summary>
+    public bool Volumes { get; set; } = true;
+
+    /// <summary>
+    /// Ray marched cloud instead of the low-poly puffs. Every pixel of sky pays for it, so it is
+    /// for the highest quality level only.
+    /// </summary>
+    public bool RayMarchedClouds { get; set; }
+
+    private void UpdateVolumes(GameSession session, Vector3 cameraPosition, Vector3 fogColor, float daylight, float clouds, float dt, Vector3 toSun, Vector3 sunColor, Vector3 skyTint)
+    {
+        bool marched = RayMarchedClouds && Volumes && _cloudLayer is not null && Fog < 0.45f;
+        if (_cloudLayer is not null)
+        {
+            _cloudLayer.Node.Visible = marched;
+            if (marched)
+            {
+                // Low enough that the distance haze leaves it its shape, and always above the
+                // camera, also on the way up Puncak.
+                _cloudLayer.Altitude = MathF.Max(760f, cameraPosition.Y + 420f);
+                _cloudLayer.Wind = new Vector2(6f + (session.Weather.Wind * 5f), 2.5f);
+                _cloudLayer.SunDirection = toSun;
+                // Fair-weather heaps that close up and darken as the rain comes in.
+                _cloudLayer.Style = new CloudStyle
+                {
+                    Coverage = MathUtil.Lerp(0.36f, 0.96f, clouds),
+                    Density = MathUtil.Lerp(0.011f, 0.03f, clouds),
+                    Thickness = MathUtil.Lerp(420f, 700f, clouds),
+                    FeatureSize = 900f,
+                    SunColor = sunColor * MathUtil.Lerp(0.16f, 1.7f, daylight) * (1f - (0.55f * clouds)),
+                    AmbientColor = Vector3.Lerp(skyTint * MathUtil.Lerp(0.08f, 0.6f, daylight) * (1f - (0.45f * clouds)), fogColor, MathUtil.Saturate(Fog * 1.6f)),
+                    Steps = 12,
+                    Haze = 0.3f,
+                };
+                _cloudLayer.Update(dt, cameraPosition);
+            }
+        }
+
+        // Mist sheets: at fixed world heights 9 m apart, the four nearest to eye level.
+        float amount = MathUtil.Saturate((Fog - 0.12f) * 1.6f) + (session.Weather.Mist * 0.5f);
+        bool misty = Volumes && amount > 0.03f;
+        _fogSheets.Visible = misty;
+        if (misty)
+        {
+            const float spacing = 9f;
+            float lowest = (MathF.Floor(cameraPosition.Y / spacing) - 1f) * spacing;
+            for (int i = 0; i < FogLayers; i++)
+            {
+                float height = lowest + (i * spacing) + 3f;
+                // Each bank slides its own way, slowly.
+                float slide = (float)session.Time * (0.6f + (i * 0.35f));
+                _fogMatrices[i] = Matrix4x4.CreateScale(520f, 1f, 520f) * Matrix4x4.CreateRotationY(i * 1.3f)
+                    * Matrix4x4.CreateTranslation(cameraPosition.X + (MathF.Sin((slide * 0.05f) + i) * 40f), height, cameraPosition.Z + (MathF.Cos((slide * 0.04f) + (i * 2f)) * 40f));
+            }
+
+            _fogSheets.SetInstances(_fogMatrices);
+            Vector4 tint = new(Vector3.Lerp(fogColor, Vector3.One, 0.25f), MathUtil.Saturate(amount) * 0.34f);
+            _fogMaterial.Update(options => options with { BaseColor = tint });
+        }
+
+        // Clouds: more of them, and darker underneath, as the weather closes in.
+        // In thick fog the sky is one grey sheet; clouds with edges would look pasted on.
+        int shown = Volumes && !marched && Fog < 0.45f ? (int)(_cloudPuffs.Length * MathUtil.Saturate(0.25f + (clouds * 0.9f))) : 0;
+        // Well above whoever is looking, also from the top of Puncak.
+        float deck = MathF.Max(1_150f, cameraPosition.Y + 650f);
+        _cloudNode.Visible = shown > 0;
+        if (shown > 0)
+        {
+            _cloudDrift += new Vector2(6f + (session.Weather.Wind * 5f), 2.5f) * dt;
+            float span = CloudField * 2f;
+            for (int i = 0; i < shown; i++)
+            {
+                (Vector3 offset, Vector3 size) = _cloudPuffs[i];
+                // The field wraps round the camera, so the sky never runs out of cloud.
+                float x = WrapSpan(offset.X + _cloudDrift.X - cameraPosition.X, span) - CloudField;
+                float z = WrapSpan(offset.Z + _cloudDrift.Y - cameraPosition.Z, span) - CloudField;
+                _cloudMatrices[i] = Matrix4x4.CreateScale(size) * Matrix4x4.CreateTranslation(cameraPosition.X + x, deck + offset.Y, cameraPosition.Z + z);
+            }
+
+            _cloudNode.SetInstances(_cloudMatrices.AsSpan(0, shown));
+            Vector3 body = Vector3.Lerp(new Vector3(0.1f, 0.12f, 0.18f), Vector3.Lerp(new Vector3(1f, 1f, 1f), new Vector3(0.52f, 0.54f, 0.58f), clouds), daylight);
+            body = Vector3.Lerp(body, fogColor, MathUtil.Saturate(Fog * 1.6f));
+            _cloudMaterial.Update(options => options with { BaseColor = new Vector4(body, 1f) });
+        }
+    }
+
+    private static float WrapSpan(float value, float span)
+    {
+        value %= span;
+        return value < 0f ? value + span : value;
     }
 
     /// <summary>Scales the number of rain streaks (quality setting).</summary>
@@ -130,6 +311,7 @@ public sealed class Atmosphere
 
         // Lights come on at dusk; a dark storm switches a few on by day as well.
         NightGlow = MathF.Max(1f - MathUtil.SmoothStep(0.15f, 0.6f, daylight), 0.3f * MathUtil.SmoothStep(0.7f, 1f, clouds));
+        UpdateVolumes(session, cameraPosition, fogColor, daylight, clouds, dt, toSun, sunColor, skyTint);
         UpdateRain(session, cameraPosition, dt);
         UpdateLamps(session, cameraPosition, dt);
     }

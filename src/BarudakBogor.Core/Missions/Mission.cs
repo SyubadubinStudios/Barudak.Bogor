@@ -53,6 +53,9 @@ public abstract class Mission
     /// <summary>Heading of the mission giver: facing the marker.</summary>
     public float GiverYaw { get; internal set; }
 
+    /// <summary>True for a side mission: optional, and not counted toward finishing the story.</summary>
+    public virtual bool IsSide => false;
+
     /// <summary>Mission that must be finished first, or null.</summary>
     public virtual string? Requires => "prolog";
 
@@ -246,6 +249,8 @@ public sealed class MissionManager
         [
             new PrologMission(), new CilokMission(), new NarikMission(), new BinaInsaniMission(),
             new StmMission(), new EmpangMission(), new BandrekMission(), new HororMission(),
+            new FlashdiskMission(), new MufakatMission(),
+            new PaketMission(), new RusaMission(), new DelmanMission(),
         ];
 
         foreach (Mission mission in _missions)
@@ -274,7 +279,10 @@ public sealed class MissionManager
     public Mission? Active { get; private set; }
 
     /// <summary>Number of story missions finished.</summary>
-    public int CompletedCount => _missions.Count(m => m.State == MissionState.Completed);
+    public int CompletedCount => _missions.Count(m => !m.IsSide && m.State == MissionState.Completed);
+
+    /// <summary>Number of story missions there are (side missions not counted).</summary>
+    public int StoryCount => _missions.Count(m => !m.IsSide);
 
     public Mission Find(string id) => _missions.First(m => m.Id == id);
 
@@ -341,7 +349,7 @@ public sealed class MissionManager
         long reward = (long)(mission.RewardMoney * (1f + _session.Player.Profile.StudyBonus));
         _session.Reward(reward, mission.RewardCareer, mission.RewardReputation);
         _session.Emit(new GameEvent(GameEventKind.MissionCompleted, mission.Title, default, reward));
-        if (CompletedCount == _missions.Count)
+        if (!mission.IsSide && CompletedCount == StoryCount)
         {
             // Finishing the whole story is what makes a mayor.
             _session.Progress.AddReputation(Career.Warga, Progress.ReputationGoal);

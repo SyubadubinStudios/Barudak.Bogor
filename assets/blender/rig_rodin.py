@@ -120,6 +120,41 @@ def piece(source, name, planes):
     return obj
 
 
+def shoulder_ball(torso, body, centre, radius, sample):
+    """Adds a ball to the torso at a shoulder joint, in the colour of the sleeve.
+
+    The arm is a separate part that swings about this point; however it is cut, turning it
+    opens a wedge between its top and the shoulder. The ball fills that wedge from every angle.
+    """
+    uv_layer = body.data.uv_layers.active
+    nearest = min(body.data.vertices, key=lambda v: (v.co - sample).length_squared).index
+    uv = next((uv_layer.data[i].uv.copy() for i, loop in enumerate(body.data.loops) if loop.vertex_index == nearest), None) if uv_layer else None
+    bm = bmesh.new()
+    bm.from_mesh(torso.data)
+    made = bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=radius)["verts"]
+    for v in made:
+        v.co += centre
+    layer = bm.loops.layers.uv.active
+    if layer is not None and uv is not None:
+        fresh = set(made)
+        for face in bm.faces:
+            if all(v in fresh for v in face.verts):
+                for loop in face.loops:
+                    loop[layer].uv = uv
+    bm.to_mesh(torso.data)
+    bm.free()
+
+
+def join(a, b):
+    """Merges b into a."""
+    bpy.ops.object.select_all(action="DESELECT")
+    a.select_set(True)
+    b.select_set(True)
+    bpy.context.view_layer.objects.active = a
+    bpy.ops.object.join()
+    return a
+
+
 def set_origin(obj, pivot):
     for v in obj.data.vertices:
         v.co -= pivot
@@ -157,17 +192,34 @@ def rig(name, source_file, height):
         neck = max(neck, arm_z + 0.045 * h)
         shoulder = 0.118 * h
         torso_edge = shoulder + 0.012 * h
+        # The arms of a generated T-pose slope down to the hands, so the joint is measured at the
+        # shoulder itself, not at the average height of the arm.
+        joint = [v.co for v in body.data.vertices if shoulder < abs(v.co.x) < shoulder + 0.07 * h and v.co.z > 0.6 * h]
+        if joint:
+            sh_top = max(v.z for v in joint)
+            sh_z = (sh_top + min(v.z for v in joint)) / 2
+            sh_y = sum(v.y for v in joint) / len(joint)
+        else:
+            sh_top, sh_z, sh_y = arm_z + 0.04 * h, arm_z, arm_y
+        cap = sh_top + 0.012 * h
 
         torso = piece(body, "torso", [(Vector((0, 0, hip)), -Z), (Vector((0, 0, neck)), Z),
                                       (Vector((torso_edge, 0, 0)), X), (Vector((-torso_edge, 0, 0)), -X)])
-        head = piece(body, "head", [(Vector((0, 0, neck)), -Z)])
+        if cap > neck + 0.005 * h:
+            # Where the top of the sleeves stands above the neck line, that slice belongs to the
+            # arms: the head only takes what lies between the shoulders there.
+            head = join(piece(body, "head", [(Vector((0, 0, cap)), -Z)]),
+                        piece(body, "head_low", [(Vector((0, 0, neck)), -Z), (Vector((0, 0, cap)), Z),
+                                                 (Vector((torso_edge, 0, 0)), X), (Vector((-torso_edge, 0, 0)), -X)]))
+        else:
+            head = piece(body, "head", [(Vector((0, 0, neck)), -Z)])
         arms = []
         for side, label in ((1, "arm_l"), (-1, "arm_r")):
             # The arm piece starts a little inside the shoulder, so that once it is turned down
             # its rounded top stays buried in the torso and the joint shows no gap.
             arm = piece(body, label, [(Vector((side * (shoulder - 0.032 * h), 0, 0)), -side * X), (Vector((0, 0, hip)), -Z),
-                                      (Vector((0, 0, neck)), Z)])
-            pivot = Vector((side * shoulder, arm_y, arm_z))
+                                      (Vector((0, 0, max(cap, neck))), Z)])
+            pivot = Vector((side * shoulder, sh_y, sh_z))
             # Outstretched along X: turn it down about the front-back axis. Stopping short of vertical keeps
             # wide sleeves looking like sleeves instead of boxes on the shoulders.
             turn = Matrix.Rotation(side * math.radians(64), 4, "Y")
@@ -178,6 +230,17 @@ def rig(name, source_file, height):
             # Tuck the arm in against the ribs: the chest is narrower than the shoulder line.
             arm.location = pivot - Vector((side * 0.02 * h, 0, 0.012 * h))
             arms.append(arm)
+            # Fill the joint: a ball as thick as the upper arm, sitting on the pivot.
+            # Measured on the arm proper (well clear of the chest, collar and anything slung over the shoulder).
+            sleeve = [v.co for v in body.data.vertices if shoulder + 0.03 * h < side * v.co.x < shoulder + 0.08 * h and abs(v.co.z - sh_z) < 0.09 * h]
+            if sleeve:
+                thick = min(max(v.z for v in sleeve) - min(v.z for v in sleeve), max(v.y for v in sleeve) - min(v.y for v in sleeve))
+                radius = min(max(0.5 * thick, 0.052 * h), 0.062 * h)
+                top = max(sleeve, key=lambda v: v.z)
+                print(f"SHOULDER {name} {label}: radius {radius / h:.3f} h")
+                # Level with the shoulder: its crown just under the top of the sleeve.
+                centre = Vector((side * (shoulder - 0.012 * h), sh_y, max(sh_z, sh_top - radius)))
+                shoulder_ball(torso, body, centre, radius, Vector(top))
         waist = Vector((0, 0, hip))
         set_origin(torso, waist)
         for child in (head, *arms):
@@ -212,38 +275,40 @@ def rig(name, source_file, height):
     print(f"RESULT {name}: {'T-pose' if tpose else 'A-pose'}, {len(parts)} parts, {tris} tris, {os.path.getsize(out) // 1024} KB")
 
 
-wanted = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else list(CHARACTERS)
-for character in wanted:
-    source, metres = CHARACTERS[character]
-    if os.path.exists(os.path.join(SRC, source)):
-        rig(character, source, metres)
+# rig_bones.py imports load() from this file, so the batch only runs when it is the script itself.
+if __name__ == "__main__":
+    wanted = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else list(CHARACTERS)
+    for character in wanted:
+        source, metres = CHARACTERS.get(character, ("", 0))
+        if source and os.path.exists(os.path.join(SRC, source)):
+            rig(character, source, metres)
 
-# Preview sheet: every rigged character side by side, front view.
-if os.environ.get("RIG_PREVIEW"):
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    x = 0.0
-    for character in CHARACTERS:
-        path = os.path.join(DST, character + ".glb")
-        if os.path.exists(path):
-            before = set(bpy.context.scene.objects)
-            bpy.ops.import_scene.gltf(filepath=path)
-            for o in set(bpy.context.scene.objects) - before:
-                if o.parent is None:
-                    o.location.x = x
-            x += 1.0
-    scene = bpy.context.scene
-    cam_data = bpy.data.cameras.new("cam")
-    cam_data.type = "ORTHO"
-    cam_data.ortho_scale = x + 0.4
-    cam = bpy.data.objects.new("cam", cam_data)
-    scene.collection.objects.link(cam)
-    cam.location = ((x - 1.0) / 2, -10, 0.9)
-    cam.rotation_euler = (math.radians(90), 0, 0)
-    scene.camera = cam
-    scene.render.engine = "BLENDER_WORKBENCH"
-    scene.display.shading.light = "FLAT"
-    scene.display.shading.color_type = "TEXTURE"
-    scene.render.resolution_x = 1800
-    scene.render.resolution_y = 300
-    scene.render.filepath = os.environ["RIG_PREVIEW"]
-    bpy.ops.render.render(write_still=True)
+    # Preview sheet: every rigged character side by side, front view.
+    if os.environ.get("RIG_PREVIEW"):
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        x = 0.0
+        for character in list(CHARACTERS)[:8]:
+            path = os.path.join(DST, character + ".glb")
+            if os.path.exists(path):
+                before = set(bpy.context.scene.objects)
+                bpy.ops.import_scene.gltf(filepath=path)
+                for o in set(bpy.context.scene.objects) - before:
+                    if o.parent is None:
+                        o.location.x = x
+                x += 1.0
+        scene = bpy.context.scene
+        cam_data = bpy.data.cameras.new("cam")
+        cam_data.type = "ORTHO"
+        cam_data.ortho_scale = x + 0.2
+        cam = bpy.data.objects.new("cam", cam_data)
+        scene.collection.objects.link(cam)
+        cam.location = ((x - 1.0) / 2, -10, 1.05)
+        cam.rotation_euler = (math.radians(90), 0, 0)
+        scene.camera = cam
+        scene.render.engine = "BLENDER_WORKBENCH"
+        scene.display.shading.light = "FLAT"
+        scene.display.shading.color_type = "TEXTURE"
+        scene.render.resolution_x = 4200
+        scene.render.resolution_y = 700
+        scene.render.filepath = os.environ["RIG_PREVIEW"]
+        bpy.ops.render.render(write_still=True)

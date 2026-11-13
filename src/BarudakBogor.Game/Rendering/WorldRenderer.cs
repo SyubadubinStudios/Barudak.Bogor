@@ -20,6 +20,7 @@ public sealed class WorldRenderer : IDisposable
     private sealed class Loaded
     {
         public required Node Root;
+        public bool Detailed;
         public readonly List<Geometry> Geometries = [];
         public Material? Material;
         public Texture? Texture;
@@ -57,9 +58,11 @@ public sealed class WorldRenderer : IDisposable
             });
         }
 
+        BuildSigns();
         foreach (Pond pond in map.Ponds)
         {
-            Node water = scene.AddMesh(Disc(pond.Radius * 1.04f), _textures.Water, name: pond.NameKey);
+            Material surface = _textures.CreateWater(pond: true, mud: 0.2f, pond.Center, pond.Radius * 1.04f);
+            Node water = scene.AddMesh(Disc(pond.Radius * 1.04f), surface, name: pond.NameKey);
             water.Position = new Vector3(pond.Center.X, pond.Level, pond.Center.Y);
             water.CastShadow = false;
         }
@@ -68,26 +71,104 @@ public sealed class WorldRenderer : IDisposable
     /// <summary>Chunks kept loaded in every direction (3 = a 7 x 7 block, about 770 m of view).</summary>
     public int Radius { get; set; } = 3;
 
-    /// <summary>Chunks within this many rings carry buildings and vegetation.</summary>
-    public int DetailRadius { get; set; } = 3;
+    /// <summary>
+    /// Chunks within this many rings are fully detailed; the ones beyond are plain shells (see
+    /// <see cref="ChunkBuilder.Build"/>) and are rebuilt in full when the player comes closer.
+    /// </summary>
+    public int DetailRadius { get; set; } = 2;
 
     public int LoadedChunks => _chunks.Count;
 
     public bool IsBusy => _pending.Count > 0 || !_ready.IsEmpty;
 
-    public void SetConditions(float wetness, float windowGlow)
+    /// <summary>
+    /// Layered ground detail and puddles (a custom surface shader). Off on the lowest quality
+    /// level: it costs a few noise lookups on every pixel of ground.
+    /// </summary>
+    public bool DetailShading { get; set; }
+
+    private float _lastRain = -1f;
+    private bool _lastShading;
+
+    public void SetConditions(float wetness, float windowGlow, float rain = 0f)
     {
-        if (MathF.Abs(wetness - _lastWetness) > 0.02f || MathF.Abs(windowGlow - _lastGlow) > 0.02f)
+        if (MathF.Abs(wetness - _lastWetness) > 0.02f || MathF.Abs(windowGlow - _lastGlow) > 0.02f
+            || MathF.Abs(rain - _lastRain) > 0.05f || _lastShading != DetailShading)
         {
             _lastWetness = wetness;
             _lastGlow = windowGlow;
-            _textures.SetConditions(wetness, windowGlow);
+            _lastRain = rain;
+            _lastShading = DetailShading;
+            Shader? shader = DetailShading ? _textures.GroundShader(_scene) : null;
+            _textures.SetConditions(wetness, windowGlow, rain, shader);
+            Vector4 custom = new(wetness, 0f, rain, 0f);
+            foreach (Loaded chunk in _chunks.Values)
+            {
+                chunk.Material?.Update(options => options with { Shader = shader, Custom0 = custom });
+            }
+        }
+    }
+
+    private readonly List<(Node Node, Vector2 Position)> _signs = [];
+
+    /// <summary>
+    /// Name boards for the well-known places. The lettering is drawn once with the interface's
+    /// own typeface and kept as a texture; the board glows a little so it reads at night.
+    /// </summary>
+    private void BuildSigns()
+    {
+        if (_map.Signs.Count == 0)
+        {
+            return;
+        }
+
+        Vertex[] vertices =
+        [
+            new(new Vector3(-0.5f, -0.5f, 0f), Vector3.UnitZ, new Vector2(0f, 1f)),
+            new(new Vector3(0.5f, -0.5f, 0f), Vector3.UnitZ, new Vector2(1f, 1f)),
+            new(new Vector3(0.5f, 0.5f, 0f), Vector3.UnitZ, new Vector2(1f, 0f)),
+            new(new Vector3(-0.5f, 0.5f, 0f), Vector3.UnitZ, new Vector2(0f, 0f)),
+        ];
+        Geometry board = _scene.CreateGeometry(vertices, [0u, 1u, 2u, 0u, 2u, 3u]);
+        foreach (Sign sign in _map.Signs)
+        {
+            string text = BarudakBogor.Localization.Loc.Name(sign.NameKey).Id.ToUpperInvariant();
+            if (SignPainter.Paint(text) is not { } pixels)
+            {
+                continue;
+            }
+
+            Texture texture = _scene.CreateTexture(SignPainter.Width, SignPainter.Height, pixels);
+            texture.SetSampler(WrapMode.ClampToEdge, WrapMode.ClampToEdge, true, true, 4);
+            Material material = _scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.6f) with
+            {
+                BaseColorMap = texture,
+                EmissiveMap = texture,
+                Emissive = Vector3.One,
+                EmissiveIntensity = 0.55f,
+                CullMode = CullMode.None,
+            });
+            Node node = _scene.AddMesh(board, material, name: "papan_nama");
+            float height = sign.Width * SignPainter.Height / SignPainter.Width;
+            Vector2 facing = MathUtil.Forward(sign.Yaw);
+            // A hand's breadth off the wall, so it never fights with it for depth.
+            node.Position = new Vector3(sign.Position.X + (facing.X * 0.12f), sign.Height, sign.Position.Y + (facing.Y * 0.12f));
+            node.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, sign.Yaw);
+            node.Scale = new Vector3(sign.Width, height, 1f);
+            node.CastShadow = false;
+            node.Visible = false;
+            _signs.Add((node, sign.Position));
         }
     }
 
     /// <summary>Schedules, uploads and unloads chunks for the current focus point.</summary>
     public void Update(Vector2 focus, int uploadsPerFrame = 2)
     {
+        foreach ((Node node, Vector2 position) in _signs)
+        {
+            node.Visible = Vector2.DistanceSquared(position, focus) < 700f * 700f;
+        }
+
         (int cx, int cz) = WorldMap.ChunkOf(focus);
         for (int ring = 0; ring <= Radius; ring++)
         {
@@ -96,14 +177,21 @@ public sealed class WorldRenderer : IDisposable
                 for (int x = cx - ring; x <= cx + ring; x++)
                 {
                     // Walk the rings outward so the ground under the player always comes first.
-                    if (Math.Max(Math.Abs(x - cx), Math.Abs(z - cz)) != ring || _chunks.ContainsKey((x, z)) || !_pending.Add((x, z)))
+                    if (Math.Max(Math.Abs(x - cx), Math.Abs(z - cz)) != ring)
+                    {
+                        continue;
+                    }
+
+                    bool detail = ring <= DetailRadius;
+                    // A shell that has come within detail range is built again in full; it stays
+                    // on screen until its replacement is ready.
+                    if ((_chunks.TryGetValue((x, z), out Loaded? have) && (have.Detailed || !detail)) || !_pending.Add((x, z)))
                     {
                         continue;
                     }
 
                     int chunkX = x;
                     int chunkZ = z;
-                    bool detail = ring <= DetailRadius;
                     Task.Run(() => _ready.Enqueue(ChunkBuilder.Build(_map, chunkX, chunkZ, detail)));
                 }
             }
@@ -112,10 +200,22 @@ public sealed class WorldRenderer : IDisposable
         for (int i = 0; i < uploadsPerFrame && _ready.TryDequeue(out ChunkData? data); i++)
         {
             _pending.Remove((data.X, data.Z));
-            if (Math.Max(Math.Abs(data.X - cx), Math.Abs(data.Z - cz)) <= Radius + 1 && !_chunks.ContainsKey((data.X, data.Z)))
+            if (Math.Max(Math.Abs(data.X - cx), Math.Abs(data.Z - cz)) > Radius + 1)
             {
-                _chunks[(data.X, data.Z)] = Upload(data);
+                continue;
             }
+
+            if (_chunks.TryGetValue((data.X, data.Z), out Loaded? old))
+            {
+                if (old.Detailed || !data.Detailed)
+                {
+                    continue;
+                }
+
+                Release(old);
+            }
+
+            _chunks[(data.X, data.Z)] = Upload(data);
         }
 
         Unload(_chunks, cx, cz, Radius + 1);
@@ -147,11 +247,16 @@ public sealed class WorldRenderer : IDisposable
     {
         Node root = _scene.CreateNode(null, "chunk");
         root.Position = data.Origin;
-        Loaded loaded = new() { Root = root };
+        Loaded loaded = new() { Root = root, Detailed = data.Detailed };
 
         Texture ground = _scene.CreateTexture(ChunkData.GroundTextureSize, ChunkData.GroundTextureSize, data.GroundPixels);
         ground.SetSampler(WrapMode.ClampToEdge, WrapMode.ClampToEdge, true, false, 1);
-        Material material = _scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.95f) with { BaseColorMap = ground });
+        Material material = _scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.95f) with
+        {
+            BaseColorMap = ground,
+            Shader = DetailShading ? _textures.GroundShader(_scene) : null,
+            Custom0 = new Vector4(MathF.Max(_lastWetness, 0f), 0f, MathF.Max(_lastRain, 0f), 0f),
+        });
         loaded.Texture = ground;
         loaded.Material = material;
         AddMesh(loaded, data.Terrain, material, castShadow: false);
@@ -159,7 +264,9 @@ public sealed class WorldRenderer : IDisposable
         AddMesh(loaded, data.RoadToll, _textures.RoadToll, castShadow: false);
         AddMesh(loaded, data.RoadGang, _textures.RoadGang, castShadow: false);
         AddMesh(loaded, data.Asphalt, _textures.Asphalt, castShadow: false);
+        AddMesh(loaded, data.Rail, _textures.Rail, castShadow: false);
         AddMesh(loaded, data.Buildings, _textures.Buildings, castShadow: true);
+        AddMesh(loaded, data.Water, _textures.Water, castShadow: false);
 
         foreach ((string model, List<Matrix4x4> transforms) in data.Instances)
         {

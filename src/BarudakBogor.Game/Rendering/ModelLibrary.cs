@@ -7,6 +7,12 @@ namespace BarudakBogor.Game.Rendering;
 public readonly record struct ModelPrimitive(Geometry Geometry, Material Material, Matrix4x4 Transform);
 
 /// <summary>
+/// A character with a skeleton: one skinned mesh and the clips that move it. Clips are null
+/// when the file lacks them.
+/// </summary>
+public sealed record RiggedModel(Node Root, AnimationClip? Idle, AnimationClip? Walk, AnimationClip? Run, AnimationClip? Sit);
+
+/// <summary>
 /// Loads each GLB once into a hidden prototype. Moving things (vehicles, people, animals) get a
 /// <see cref="Node.Clone"/> that shares the GPU buffers; static scenery is drawn with instancing
 /// from the prototype's primitives.
@@ -65,6 +71,46 @@ public sealed class ModelLibrary
         Node copy = prototype.Clone(parent);
         copy.Visible = true;
         return copy;
+    }
+
+    /// <summary>
+    /// A skinned, animated copy of a character (<c>name_rig.glb</c>, made by <c>rig_bones.py</c>),
+    /// or null when there is none. Unlike <see cref="Spawn"/> this imports the file each time:
+    /// a skinned mesh is deformed in place, so two characters cannot share one, and a clip
+    /// drives the bones of one import only. Keep what this returns and reuse it.
+    /// </summary>
+    public RiggedModel? SpawnRigged(string name, Node parent)
+    {
+        string path = Path.Combine(ModelDirectory, name + "_rig.glb");
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+
+        Node root = _scene.CreateNode(parent, name + "_rig");
+        try
+        {
+            int before = _scene.Animations.Count;
+            ImportResult result = _scene.LoadGltf(path, root);
+            if (result.SkinCount == 0)
+            {
+                root.Remove();
+                return null;
+            }
+
+            Dictionary<string, AnimationClip> clips = [];
+            foreach (AnimationClip clip in _scene.Animations.Skip(before))
+            {
+                clips[clip.Name] = clip;
+            }
+
+            return new RiggedModel(root, clips.GetValueOrDefault("idle"), clips.GetValueOrDefault("walk"), clips.GetValueOrDefault("run"), clips.GetValueOrDefault("sit"));
+        }
+        catch (ThreeNetException)
+        {
+            root.Remove();
+            return null;
+        }
     }
 
     /// <summary>Finds a named part (wheel, leg, head...) anywhere below a spawned copy.</summary>

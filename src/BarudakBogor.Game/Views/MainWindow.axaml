@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:tn="clr-namespace:ThreeNet.Avalonia;assembly=ThreeNet.Avalonia"
+        xmlns:r="clr-namespace:BarudakBogor.Game.Rendering"
         xmlns:v="clr-namespace:BarudakBogor.Game.Views"
         x:Class="BarudakBogor.Game.Views.MainWindow"
         Title="Barudak Bogor"
@@ -9,7 +9,7 @@
         Background="{StaticResource Asphalt}">
 
   <Grid>
-    <tn:ThreeNetView x:Name="Viewport" Focusable="True" />
+    <r:GameViewport x:Name="Viewport" />
     <!-- Catches mouse look without stealing clicks from the panels above it. -->
     <Border x:Name="InputLayer" Background="Transparent" />
 

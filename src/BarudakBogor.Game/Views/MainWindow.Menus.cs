@@ -26,6 +26,14 @@ public partial class MainWindow
     private PauseTab _tab = PauseTab.Map;
     private SaveData? _save;
 
+    private void SaveSettings()
+    {
+        if (!Scripted)
+        {
+            _settings.Save();
+        }
+    }
+
     private void WireMenus()
     {
         ContinueButton.Click += (_, _) => StartPlaying(_save);
@@ -142,7 +150,7 @@ public partial class MainWindow
     {
         _settings.Language = _settings.Language == Language.Indonesia ? Language.English : Language.Indonesia;
         Loc.Language = _settings.Language;
-        _settings.Save();
+        SaveSettings();
         _audio?.Click();
         if (_screen == Screen.Title)
         {
@@ -157,7 +165,7 @@ public partial class MainWindow
     private void CycleQuality()
     {
         _settings.Quality = (Quality)(((int)_settings.Quality + 1) % 3);
-        _settings.Save();
+        SaveSettings();
         ApplyQuality();
         _audio?.Click();
         if (_screen == Screen.Title)
@@ -418,7 +426,7 @@ public partial class MainWindow
             StackPanel text = new() { Spacing = 2 };
             text.Children.Add(Heading(mission.Title.Text.ToUpperInvariant()));
             text.Children.Add(Paragraph(mission.Summary.Text));
-            text.Children.Add(Caption($"{status} · {Ui.Reward.With(Loc.Rupiah(mission.RewardMoney)).Text}"));
+            text.Children.Add(Caption($"{(mission.IsSide ? Ui.SideMission.Text + " · " : string.Empty)}{status} · {Ui.Reward.With(Loc.Rupiah(mission.RewardMoney)).Text}"));
             Grid.SetColumn(text, 1);
             grid.Children.Add(text);
             if (mission.State == MissionState.Active)
@@ -475,7 +483,7 @@ public partial class MainWindow
             button.Click += (_, _) =>
             {
                 action();
-                _settings.Save();
+                SaveSettings();
                 _audio?.Click();
                 RefreshPause();
             };
@@ -493,6 +501,12 @@ public partial class MainWindow
             ApplyQuality();
         });
         TabContent.Children.Add(Caption(Ui.QualityNote.Text));
+        Option(Ui.DynamicResolution.With((_settings.DynamicResolution ? Ui.On : Ui.Off).Text).Text, () =>
+        {
+            _settings.DynamicResolution = !_settings.DynamicResolution;
+            ResetDynamicResolution();
+        });
+        TabContent.Children.Add(Caption(Ui.DynamicResolutionNote.Text));
         Option(Ui.Sound.With((_settings.Muted ? Ui.Off : Ui.On).Text).Text, () =>
         {
             _settings.Muted = !_settings.Muted;
@@ -534,6 +548,26 @@ public partial class MainWindow
         }
 
         TabContent.Children.Add(Card(grid, "Kujang"));
+
+        Grid pad = new() { ColumnDefinitions = new ColumnDefinitions("230,*") };
+        row = 0;
+        foreach ((string keys, L action) in Ui.PadControls)
+        {
+            pad.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            TextBlock key = new() { Classes = { "display" }, Text = keys, FontSize = 15, Foreground = Brush("Rain"), Margin = new Avalonia.Thickness(0, 5) };
+            TextBlock what = new() { Text = action.Text, FontSize = 19, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Avalonia.Thickness(0, 4) };
+            Grid.SetRow(key, row);
+            Grid.SetRow(what, row);
+            Grid.SetColumn(what, 1);
+            pad.Children.Add(key);
+            pad.Children.Add(what);
+            row++;
+        }
+
+        StackPanel padCard = new() { Spacing = 6 };
+        padCard.Children.Add(Caption(Ui.PadTitle.Text));
+        padCard.Children.Add(pad);
+        TabContent.Children.Add(Card(padCard, "Rain"));
         StackPanel about = new() { Spacing = 4 };
         about.Children.Add(Heading("BARUDAK BOGOR"));
         about.Children.Add(Paragraph(Loc.Tagline.Text));

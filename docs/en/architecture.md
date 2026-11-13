@@ -37,7 +37,7 @@ keys/mouse ─► InputState ─► GameSession.Update ─► state ─► World
 | `Sim` | `GameClock`, `WeatherSystem` |
 | `Entities` | `Player`, `Vehicle`, `Population` (traffic, pedestrians, animals) |
 | `Gameplay` | `GameSession`, `Progress`, events, markers, dialogue, `SaveSystem` |
-| `Missions` | `Mission` base class with a step script, `MissionManager`, the eight story missions |
+| `Missions` | `Mission` base class with a step script, `MissionManager`, the ten story missions and three side missions |
 | `Activities` | Fishing, the rhythm game behind badminton and karaoke, ojol, touring, photography, the bandrek business |
 | `Localization` | `L(Id, En)`: every text carries both languages at the place it is written |
 
@@ -57,7 +57,7 @@ Things worth knowing before changing them:
 | `Rendering/WorldRenderer` | Streams 256 m chunks around the player; meshes are built on worker threads (`ChunkBuilder`) and uploaded a few per frame. Coarse 2 km tiles beyond give the mountains their outline |
 | `Rendering/ChunkBuilder` | Terrain, a painted ground texture per chunk, road ribbons, buildings merged into one mesh per chunk, instanced trees and props |
 | `Rendering/Textures` | Paints the building facade atlas and road textures at start-up; wetness and window glow are material parameters |
-| `Rendering/EntityRenderer` | Pooled views for player, vehicles, people, animals, mission givers and beacons; walking and wheels are animated in code from named model parts |
+| `Rendering/EntityRenderer` | Pooled views for player, vehicles, people, animals, mission givers and beacons; walking and wheels are animated in code from named model parts; the player is a skinned mesh on a skeleton, moved by blended Blender clips (idle, walk, run, sit) |
 | `Rendering/Atmosphere` | Sun, sky, fog, rain streaks, lamp lights |
 | `Rendering/CameraRig` | Third person camera |
 | `Audio/GameAudio` | All sound is synthesised at start-up |
@@ -72,4 +72,4 @@ Things worth knowing before changing them:
 
 ## Performance notes
 
-Measured with `--bench` at 1280 x 720 on Intel UHD 620, heavy rain, driving: Hemat 30 fps, Sedang 31 fps, Tinggi 18 fps, with about 210 draw calls and 450 k triangles. Frames are pumped from the display refresh (`MainWindow.PumpFrame`) because the view's own `DispatcherTimer` rounds every frame up to the 15.6 ms Windows timer grid. The machine is pixel-bound: scene content barely moves the frame rate, resolution and post effects do.
+Measured with `--bench` at 1280 x 720 on Intel UHD 620, heavy rain, driving: Hemat 55-60 fps, Sedang 30 fps, Tinggi 30 fps (dynamic resolution on), with about 210 draw calls and 450 k triangles. Frames are pumped from the display refresh (`MainWindow.PumpFrame`) because the view's own `DispatcherTimer` rounds every frame up to the 15.6 ms Windows timer grid. The machine is pixel-bound: scene content barely moves the frame rate, resolution and post effects do.

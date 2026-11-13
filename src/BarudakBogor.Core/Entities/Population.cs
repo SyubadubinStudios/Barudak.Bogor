@@ -34,10 +34,14 @@ public sealed class Pedestrian
     internal float Side = 1f;
     internal float Timer;
     internal Vector2 DodgeVelocity;
+    internal bool CarriesUmbrella;
 
     public int Id { get; init; }
 
     public NpcKind Kind { get; init; }
+
+    /// <summary>True while this walker has an umbrella up (they carry one and it is raining).</summary>
+    public bool Umbrella { get; internal set; }
 
     /// <summary>Model drawn for this walker; several look-alikes share a kind.</summary>
     public string Model { get; init; } = "npc_bapak";
@@ -184,6 +188,59 @@ public sealed class Population
     /// <summary>Scales how many people and cars are around (settings / low-end machines).</summary>
     public float Density { get; set; } = 1f;
 
+    /// <summary>
+    /// How full the streets are at an hour of the day (1 = the busiest): nearly empty before
+    /// dawn, peaks at the morning market, lunch and going-home time, thinning out after dark.
+    /// </summary>
+    public static float CrowdFactor(float hours) => hours switch
+    {
+        < 4f => 0.15f,
+        < 6f => 0.15f + ((hours - 4f) * 0.35f),
+        < 8f => 1f,
+        < 11f => 0.85f,
+        < 13f => 1f,
+        < 16f => 0.8f,
+        < 19f => 1f,
+        < 22f => 1f - ((hours - 19f) * 0.2f),
+        _ => 0.25f,
+    };
+
+    /// <summary>
+    /// How likely a kind of person is to be out at an hour (0 = never, 1 = as usual, above 1 =
+    /// their rush hour). Children are in class through the morning, office workers appear at
+    /// the commute and at lunch, and only ojol riders, traders and the night watch keep late hours.
+    /// </summary>
+    public static float ScheduleFactor(NpcKind kind, float hours) => kind switch
+    {
+        NpcKind.AnakSd or NpcKind.AnakSekolah => hours switch
+        {
+            >= 6f and < 7.5f => 1.6f,
+            >= 7.5f and < 12.5f => 0.04f,
+            >= 12.5f and < 14.5f => 1.6f,
+            >= 14.5f and < 18f => 0.5f,
+            _ => 0f,
+        },
+        NpcKind.Pegawai => hours switch
+        {
+            >= 6.5f and < 9f => 1.5f,
+            >= 9f and < 11.5f => 0.4f,
+            >= 11.5f and < 13.5f => 1.2f,
+            >= 13.5f and < 16f => 0.4f,
+            >= 16f and < 19f => 1.5f,
+            >= 19f and < 22f => 0.3f,
+            _ => 0.03f,
+        },
+        NpcKind.Mahasiswa => hours switch { >= 7f and < 22f => 1f, >= 22f => 0.4f, _ => 0.05f },
+        NpcKind.Pedagang => hours is >= 4.5f and < 21f ? 1f : 0.35f,
+        NpcKind.Ibu => hours switch { >= 5f and < 11f => 1.4f, >= 11f and < 18f => 0.9f, >= 18f and < 21f => 0.5f, _ => 0.04f },
+        NpcKind.Bapak => hours is >= 5f and < 22f ? 1f : 0.5f,
+        NpcKind.Ojol => hours is >= 19f or < 5f ? 1.3f : 1f,
+        _ => hours is >= 5f and < 22f ? 1f : 0.5f,
+    };
+
+    /// <summary>The commuter train: traffic waits at a level crossing while it passes.</summary>
+    public Train? Train { get; set; }
+
     /// <summary>Raised when a pedestrian leaps out of the player's way.</summary>
     public event Action<Pedestrian>? PedestrianDodged;
 
@@ -220,7 +277,7 @@ public sealed class Population
     private void Spawn(Vector2 focus, Vector2 facing, GameClock clock, WeatherSystem weather)
     {
         LandUse use = _map.LandUseAt(focus);
-        float night = clock.IsNight ? 0.45f : 1f;
+        float night = CrowdFactor(clock.Hours);
         int wantedPeople = (int)(use switch
         {
             LandUse.Pasar => 60,
@@ -307,19 +364,31 @@ public sealed class Population
     private void SpawnPedestrian(RoadHit hit, GameClock clock)
     {
         LandUse use = _map.LandUseAt(hit.Point);
-        float roll = _rng.NextFloat();
         bool schoolRun = clock.Hours is (>= 6f and < 7.5f) or (>= 12.5f and < 14f);
-        NpcKind kind = use switch
+        // Draw from who lives around here, then keep the draw only if that kind of person is
+        // out at this hour; whoever is left after a few tries is the night's usual company.
+        NpcKind kind = clock.Hours is >= 5f and < 22f ? NpcKind.Bapak : NpcKind.Ojol;
+        for (int attempt = 0; attempt < 5; attempt++)
         {
-            LandUse.Kampus => roll < 0.5f ? NpcKind.Mahasiswa : roll < 0.62f ? NpcKind.Ojol : roll < 0.75f ? NpcKind.Pedagang : roll < 0.88f ? NpcKind.Bapak : NpcKind.Ibu,
-            LandUse.Pasar => roll < 0.34f ? NpcKind.Pedagang : roll < 0.62f ? NpcKind.Ibu : roll < 0.8f ? NpcKind.Bapak : roll < 0.9f ? NpcKind.Sopir : NpcKind.AnakSd,
-            LandUse.Kota or LandUse.Modern => roll < 0.2f ? NpcKind.Pegawai : roll < 0.38f ? NpcKind.Bapak : roll < 0.56f ? NpcKind.Ibu
-                : roll < 0.68f ? NpcKind.Mahasiswa : roll < 0.8f ? NpcKind.Ojol : roll < 0.92f ? NpcKind.Pedagang : NpcKind.AnakSd,
-            _ => roll < 0.26f ? NpcKind.Bapak : roll < 0.52f ? NpcKind.Ibu : roll < 0.7f ? NpcKind.Pedagang : roll < 0.82f ? NpcKind.AnakSd : roll < 0.92f ? NpcKind.Sopir : NpcKind.Ojol,
-        };
-        if (schoolRun && _rng.Chance(0.45f))
-        {
-            kind = _rng.Chance(0.6f) ? NpcKind.AnakSd : NpcKind.AnakSekolah;
+            float roll = _rng.NextFloat();
+            NpcKind drawn = use switch
+            {
+                LandUse.Kampus => roll < 0.5f ? NpcKind.Mahasiswa : roll < 0.62f ? NpcKind.Ojol : roll < 0.75f ? NpcKind.Pedagang : roll < 0.88f ? NpcKind.Bapak : NpcKind.Ibu,
+                LandUse.Pasar => roll < 0.34f ? NpcKind.Pedagang : roll < 0.62f ? NpcKind.Ibu : roll < 0.8f ? NpcKind.Bapak : roll < 0.9f ? NpcKind.Sopir : NpcKind.AnakSd,
+                LandUse.Kota or LandUse.Modern => roll < 0.2f ? NpcKind.Pegawai : roll < 0.38f ? NpcKind.Bapak : roll < 0.56f ? NpcKind.Ibu
+                    : roll < 0.68f ? NpcKind.Mahasiswa : roll < 0.8f ? NpcKind.Ojol : roll < 0.92f ? NpcKind.Pedagang : NpcKind.AnakSd,
+                _ => roll < 0.26f ? NpcKind.Bapak : roll < 0.52f ? NpcKind.Ibu : roll < 0.7f ? NpcKind.Pedagang : roll < 0.82f ? NpcKind.AnakSd : roll < 0.92f ? NpcKind.Sopir : NpcKind.Ojol,
+            };
+            if (schoolRun && _rng.Chance(0.45f))
+            {
+                drawn = _rng.Chance(0.6f) ? NpcKind.AnakSd : NpcKind.AnakSekolah;
+            }
+
+            if (_rng.Chance(ScheduleFactor(drawn, clock.Hours)))
+            {
+                kind = drawn;
+                break;
+            }
         }
 
         Pedestrian pedestrian = new()
@@ -332,6 +401,14 @@ public sealed class Population
             Direction = _rng.Chance(0.5f) ? 1 : -1,
             Side = _rng.Chance(0.5f) ? 1f : -1f,
             Speed = _rng.Range(1.1f, 1.6f),
+            // Ojol riders wear a raincoat instead; children mostly forget theirs.
+            CarriesUmbrella = _rng.Chance(kind switch
+            {
+                NpcKind.Ojol => 0.08f,
+                NpcKind.AnakSd or NpcKind.AnakSekolah => 0.35f,
+                NpcKind.Ibu or NpcKind.Pegawai => 0.8f,
+                _ => 0.55f,
+            }),
         };
         PlaceOnKerb(pedestrian);
         _pedestrians.Add(pedestrian);
@@ -491,6 +568,19 @@ public sealed class Population
                 }
             }
 
+            if (!blocked && Train is { } train)
+            {
+                foreach (LevelCrossing crossing in _map.Crossings)
+                {
+                    if (train.Closes(crossing) && IsAhead(position, forward, crossing.Point, MathF.Max(lookAhead, 16f) + 6f, 5f)
+                        && Vector2.Distance(position, crossing.Point) > 7f)
+                    {
+                        blocked = true;
+                        break;
+                    }
+                }
+            }
+
             // Angkots stop to wait for passengers ("ngetem") wherever they please.
             agent.NextStop -= dt;
             if (agent.NextStop <= 0f)
@@ -606,6 +696,9 @@ public sealed class Population
                 continue;
             }
 
+            // Umbrellas go up one by one as the rain sets in, not all on the same frame.
+            p.Umbrella = p.CarriesUmbrella && weather.Rain > 0.12f + ((p.Id % 7) * 0.03f);
+
             // Leap clear of a vehicle bearing down on us. Nobody gets hurt in Bogor.
             if (car is not null && p.State != PedestrianState.Dodge && MathF.Abs(car.Speed) > 2.5f)
             {
@@ -660,8 +753,8 @@ public sealed class Population
                     break;
 
                 default:
-                    // People hurry when it pours.
-                    float pace = _rng.Range(1.15f, 1.5f) * (1f + (0.8f * weather.Rain));
+                    // People hurry when it pours, unless they are dry under an umbrella.
+                    float pace = _rng.Range(1.15f, 1.5f) * (1f + ((p.Umbrella ? 0.15f : 1f) * weather.Rain));
                     p.Speed += (pace - p.Speed) * MathUtil.Damp(3f, dt);
                     p.Distance += p.Speed * p.Direction * dt;
                     if (p.Distance > p.Edge.Length || p.Distance < 0f)
@@ -685,6 +778,39 @@ public sealed class Population
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// The nearest walker within <paramref name="radius"/> who is free to chat. They stop and
+    /// turn to face <paramref name="toward"/> for a few seconds.
+    /// </summary>
+    public Pedestrian? Greet(Vector2 toward, float radius)
+    {
+        Pedestrian? nearest = null;
+        float best = radius * radius;
+        foreach (Pedestrian p in _pedestrians)
+        {
+            float d2 = Vector2.DistanceSquared(p.Position.Xz(), toward);
+            if (d2 < best && p.State != PedestrianState.Dodge)
+            {
+                best = d2;
+                nearest = p;
+            }
+        }
+
+        if (nearest is not null)
+        {
+            nearest.State = PedestrianState.Idle;
+            nearest.Timer = 3.5f;
+            nearest.Speed = 0f;
+            Vector2 facing = toward - nearest.Position.Xz();
+            if (facing.LengthSquared() > 0.01f)
+            {
+                nearest.Yaw = MathUtil.YawOf(facing);
+            }
+        }
+
+        return nearest;
     }
 
     private void NextEdge(Pedestrian p)

@@ -110,6 +110,72 @@ public sealed class GameplayTests(WorldFixture fixture)
     }
 
     [Fact]
+    public void InterceptorGetsAheadOfASteadyDriver()
+    {
+        GameSession session = NewSession();
+        session.Missions.Start(session.Missions.Find("prolog"));
+        SkipDialog(session);
+        Vehicle angkot = session.Vehicles.Where(v => v.Spec.Kind == VehicleKind.Angkot)
+            .OrderBy(v => Vector2.Distance(v.Ground, session.Player.Ground)).First();
+        // A long straight road, so the only question is who is in front.
+        RoadEdge toll = _map.Roads.Edges.First(e => e.Kind == RoadKind.Toll);
+        Vector2 start = toll.Sample(toll.Length * 0.3f, out Vector2 along);
+        angkot.Place(_map, start, MathUtil.YawOf(along));
+        session.EnterVehicle(angkot);
+        session.Update(Step, default);
+        SkipDialog(session);
+        List<Vehicle> hunters = [.. session.Vehicles.Where(v => v.Spec.Kind == VehicleKind.MobilKeluarga && v.Occupied)];
+        Assert.Equal(2, hunters.Count);
+
+        // Cruise at a modest speed: brake whenever the angkot gets above about 40 km/h.
+        bool ahead = false;
+        for (int i = 0; i < 30 * 40 && !ahead && session.Missions.Active is not null; i++)
+        {
+            float throttle = angkot.Speed < 11f ? 0.8f : 0f;
+            session.Update(Step, new InputState { Move = new Vector2(0f, throttle) });
+            Vector2 forward = angkot.Forward;
+            ahead = hunters.Any(h => Vector2.Dot(h.Ground - angkot.Ground, forward) > 3f && Vector2.Distance(h.Ground, angkot.Ground) < 30f);
+        }
+
+        Assert.True(ahead, "neither pursuer got in front of a player cruising at 40 km/h");
+    }
+
+    [Fact]
+    public void ControllerMapsOntoTheSameInputAsTheKeyboard()
+    {
+        InputState input = default;
+        PadState pad = new(PadButtons.A | PadButtons.X, PadButtons.None, new Vector2(1f, 0.5f), default, 0f, 0f);
+        PadInput.Merge(ref input, pad, driving: false, choices: 0, lanes: 0);
+        Assert.True(input.Move.X < -0.8f, "stick right must steer right, which is negative X");
+        Assert.True(input.Move.Y > 0.3f);
+        Assert.True(input.Jump && input.Action && input.ActionHeld && input.Interact);
+
+        // Held buttons do not fire again.
+        input = default;
+        PadInput.Merge(ref input, pad with { Previous = pad.Buttons }, false, 0, 0);
+        Assert.False(input.Jump || input.Interact);
+        Assert.True(input.ActionHeld);
+
+        // Driving: triggers are throttle and brake.
+        input = default;
+        PadInput.Merge(ref input, new PadState(PadButtons.RightBumper, default, default, default, 0.2f, 1f), driving: true, 0, 0);
+        Assert.Equal(0.8f, input.Move.Y, 3);
+        Assert.True(input.Handbrake);
+
+        // Drift near the centre is ignored.
+        Assert.Equal(Vector2.Zero, PadInput.ApplyDeadZone(new Vector2(0.1f, -0.1f)));
+
+        // Dialogue: the d-pad picks; rhythm: B is a lane, not "leave".
+        input = default;
+        PadInput.Merge(ref input, new PadState(PadButtons.DPadRight, default, default, default, 0f, 0f), false, choices: 3, lanes: 0);
+        Assert.Equal(0b10, input.Lanes);
+        input = default;
+        PadInput.Merge(ref input, new PadState(PadButtons.B, default, default, default, 0f, 0f), false, choices: 0, lanes: 4);
+        Assert.Equal(0b1000, input.Lanes);
+        Assert.False(input.Cancel);
+    }
+
+    [Fact]
     public void EveryVehicleKindHasASpec()
     {
         foreach (VehicleKind kind in Enum.GetValues<VehicleKind>())
@@ -350,6 +416,14 @@ public sealed class GameplayTests(WorldFixture fixture)
         session.Missions.Refresh();
         foreach (Mission mission in session.Missions.All.Where(m => m.Id != "prolog"))
         {
+            // Later chapters need earlier ones; unlock whatever this one asks for.
+            session.Progress.CompletedMissions.Remove(mission.Id);
+            if (mission.Requires is { } needed)
+            {
+                session.Progress.CompletedMissions.Add(needed);
+            }
+
+            session.Missions.Refresh();
             int vehicles = session.Vehicles.Count;
             Assert.True(session.Missions.Start(mission), mission.Id);
             SkipDialog(session);

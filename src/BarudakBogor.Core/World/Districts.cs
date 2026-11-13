@@ -14,6 +14,7 @@ public enum DistrictId
     Empang,
     Puncak,
     GangSelot,
+    SuryaKencana,
 }
 
 /// <summary>What the land is used for at a point; drives buildings, vegetation and population.</summary>
@@ -66,6 +67,31 @@ public enum PoiId
     WarungBandrek,
     LapanganBadminton,
     Karaoke,
+    StasiunBogor,
+    IstanaBogor,
+    MuseumZoologi,
+    MuseumTanah,
+    MuseumPeta,
+    BalaiKota,
+    Katedral,
+    MasjidRaya,
+    BotaniSquare,
+    BogorTradeMall,
+    YogyaJunction,
+    PlazaJambuDua,
+    Ramayana,
+    Ekalokasari,
+    LotteMart,
+    BogorGreatMall,
+    PasarBogor,
+    SuryaKencana,
+    AirMancur,
+    LapanganSempur,
+    GorPajajaran,
+    AlunAlun,
+    TamanKencana,
+    TerminalBaranangsiang,
+    BendungKatulampa,
 }
 
 /// <summary>A named place. <see cref="Position"/> is beside the road, <see cref="RoadPoint"/> on it.</summary>

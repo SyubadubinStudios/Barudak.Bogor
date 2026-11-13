@@ -26,6 +26,8 @@ public sealed class GameAudio : IDisposable
     private readonly SoundInstance? _motor;
     private readonly SoundInstance? _musicDay;
     private readonly SoundInstance? _musicNight;
+    private readonly SoundInstance? _radio;
+    private float _radioGain;
     private float _dayGain;
     private float _nightGain;
     private float _volume = 0.8f;
@@ -52,6 +54,7 @@ public sealed class GameAudio : IDisposable
             _motor = _engine.Play(motor, SoundOptions.Flat(0f, loop: true));
             _musicDay = _engine.Play(_engine.CreateClip(Audio.Music.Day(), 1, Audio.Music.Rate), SoundOptions.Flat(0f, loop: true));
             _musicNight = _engine.Play(_engine.CreateClip(Audio.Music.Night(), 1, Audio.Music.Rate), SoundOptions.Flat(0f, loop: true));
+            _radio = _engine.Play(_engine.CreateClip(Audio.Music.Dangdut(), 1, Audio.Music.Rate), SoundOptions.Flat(0f, loop: true));
             Apply();
         }
         catch (Exception exception) when (exception is ThreeNetException or DllNotFoundException or EntryPointNotFoundException)
@@ -107,6 +110,12 @@ public sealed class GameAudio : IDisposable
         // Both always run, so changing over is just a slow cross-fade.
         bool calm = !playing || session.Clock.IsNight || session.Weather.Rain > 0.35f;
         float level = Music ? (session.Activity is null ? 0.5f : 0.22f) : 0f;
+        // In an angkot the driver's radio takes over: dangdut, a little too loud.
+        bool radio = playing && Music && session.Player.Vehicle is { Spec.Kind: VehicleKind.Angkot } && session.Activity is null;
+        _radioGain += ((radio ? 0.5f : 0f) - _radioGain) * 0.03f;
+        float radioGain = _radioGain;
+        _radio?.Update(o => o with { Gain = radioGain });
+        level *= 1f - MathUtil.Saturate(_radioGain * 2f);
         _dayGain += (((calm ? 0f : level)) - _dayGain) * 0.012f;
         _nightGain += (((calm ? level : 0f)) - _nightGain) * 0.012f;
         float day = _dayGain;

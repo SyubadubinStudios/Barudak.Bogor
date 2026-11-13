@@ -9,8 +9,12 @@ using BarudakBogor.World;
 
 namespace BarudakBogor.Missions;
 
-/// <summary>A car that hunts the player along the road graph (used by the prologue chase).</summary>
-internal sealed class Pursuer(GameSession session, Vehicle vehicle)
+/// <summary>
+/// A car that hunts the player along the road graph (used by the prologue chase). A plain
+/// pursuer follows; an interceptor heads for where the player is going, overtakes when it has
+/// the legs and swings in front, so the two cars work as a pair: one pushes, one blocks.
+/// </summary>
+internal sealed class Pursuer(GameSession session, Vehicle vehicle, bool interceptor = false)
 {
     private readonly List<int> _route = [];
     private RoadEdge? _edge;
@@ -29,14 +33,36 @@ internal sealed class Pursuer(GameSession session, Vehicle vehicle)
         WorldMap map = session.Map;
         Player player = session.Player;
         Vector2 position = Vehicle.Ground;
-        Vector2 target = player.Ground;
-        float gap = Vector2.Distance(position, target);
+        Vector2 quarry = player.Ground;
+        float gap = Vector2.Distance(position, quarry);
+        Vector2 heading = player.Vehicle is { } ride && ride.Velocity.LengthSquared() > 4f
+            ? Vector2.Normalize(ride.Velocity)
+            : MathUtil.Forward(player.Yaw);
+
+        // The interceptor aims ahead of the player: far away at where they will be in a few
+        // seconds, close up at a point just off their front bumper.
+        Vector2 target = quarry;
+        // How far along the player's line of travel this car is: negative behind, positive in front.
+        float lead = Vector2.Dot(position - quarry, heading);
+        bool overtaking = interceptor && lead < 7f;
+        if (interceptor)
+        {
+            target = gap > 28f
+                ? quarry + (heading * MathF.Min(player.Speed * 3.5f, 90f))
+                : quarry + (heading * 8f) + (MathUtil.Left(heading) * 1.5f);
+        }
 
         // Rubber band: always a little slower than a well driven angkot, never left far behind.
-        float wanted = Math.Clamp((player.Speed * 0.88f) + 5f + (gap > 90f ? 8f : 0f), 7f, 23f);
-        if (gap < 7f)
+        // An interceptor that has not yet got in front gets a little extra to draw past.
+        float wanted = Math.Clamp((player.Speed * 0.88f) + 5f + (gap > 90f ? 8f : 0f) + (overtaking ? 3.5f : 0f), 7f, 24f);
+        if (interceptor && !overtaking && gap < 28f)
         {
-            wanted = MathF.Min(wanted, player.Speed);
+            // In front: ease off so the player has to brake or steer round.
+            wanted = player.Speed * 0.85f;
+        }
+        else if (gap < 7f)
+        {
+            wanted = MathF.Min(wanted, player.Speed + (overtaking ? 2.5f : 0f));
         }
 
         _speed += Math.Clamp(wanted - _speed, -14f * dt, 6f * dt);
@@ -46,7 +72,15 @@ internal sealed class Pursuer(GameSession session, Vehicle vehicle)
         {
             // Close enough to see the target: drive straight at it.
             _edge = null;
-            Vector2 direction = gap > 0.1f ? (target - position) / gap : Vehicle.Forward;
+            Vector2 toTarget = target - position;
+            Vector2 direction = toTarget.LengthSquared() > 0.04f ? Vector2.Normalize(toTarget) : Vehicle.Forward;
+            // Keep off the quarry's flank while overtaking instead of ramming through it.
+            Vector2 away = position - quarry;
+            if (interceptor && away.LengthSquared() is > 0.01f and < 16f)
+            {
+                direction = Vector2.Normalize(direction + (Vector2.Normalize(away) * 0.8f));
+            }
+
             float yaw = MathUtil.TurnToward(Vehicle.Yaw, MathUtil.YawOf(direction), 2.4f * dt);
             Vector2 next = map.ResolveCircle(position + (MathUtil.Forward(yaw) * _speed * dt), Vehicle.Spec.Radius, out _);
             Vehicle.MoveKinematic(map, next, yaw, _speed, dt);
@@ -99,6 +133,17 @@ internal sealed class Pursuer(GameSession session, Vehicle vehicle)
         if (map.Roads.Nearest(position, 200f, e => e.Kind != RoadKind.Gang) is not { } hit)
         {
             _edge = null;
+            return;
+        }
+
+        // Already on the target's road: head along it. Routing to the nearest junction would
+        // send the car the wrong way whenever that junction lies behind the target.
+        if (map.Roads.Nearest(target, 200f, e => e.Kind != RoadKind.Gang) is { } there && there.Edge == hit.Edge)
+        {
+            _edge = hit.Edge;
+            _distance = hit.Distance;
+            _direction = there.Distance >= hit.Distance ? 1 : -1;
+            _route.Clear();
             return;
         }
 
@@ -174,7 +219,7 @@ public sealed class PrologMission : Mission
                 Vehicle car = S.SpawnVehicle(VehicleKind.MobilKeluarga, behind, angkot.Yaw);
                 car.Occupied = true;
                 car.LightsOn = true;
-                _pursuers.Add(new Pursuer(S, car));
+                _pursuers.Add(new Pursuer(S, car, interceptor: i == 1));
                 OnEnd(() => S.RemoveVehicle(car));
             }
 

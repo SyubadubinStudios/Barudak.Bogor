@@ -9,4 +9,9 @@
     <InternalsVisibleTo Include="BarudakBogor.Core.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Real street network of central Bogor, from OpenStreetMap (ODbL). -->
+    <EmbeddedResource Include="World/bogor_streets.txt" LogicalName="BarudakBogor.World.bogor_streets.txt" />
+  </ItemGroup>
+
 </Project>

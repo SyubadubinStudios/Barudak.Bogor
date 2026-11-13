@@ -8,7 +8,7 @@ Made by Ariana Mischa Fadhila of Syubadubin Studios. · [Bahasa Indonesia](../id
 
 - 64-bit Windows 10 or 11 (the only platform tested so far)
 - .NET SDK 10
-- A GPU with DirectX 12. Integrated graphics work: about 30 fps on Intel UHD 620 at the Hemat or Sedang quality levels.
+- A GPU with DirectX 12. Integrated graphics work: on Intel UHD 620 about 55-60 fps at Hemat and 30 fps at Sedang or Tinggi.
 
 Rust is **not** needed to build the game: the Three.Net native core comes prebuilt in the `ThreeNet.Native` NuGet package.
 

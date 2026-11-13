@@ -89,7 +89,7 @@ public partial class MainWindow
         else
         {
             TrayekLabel.Text = Ui.StoryLabel.Text;
-            TrayekNumber.Text = $"{session.Missions.CompletedCount}/{session.Missions.All.Count}";
+            TrayekNumber.Text = $"{session.Missions.CompletedCount}/{session.Missions.StoryCount}";
         }
 
         UpdateJobPanel(session);
@@ -121,7 +121,7 @@ public partial class MainWindow
         if (_settings.ShowStats)
         {
             ThreeNet.FrameStats stats = Viewport.Stats;
-            StatsText.Text = $"{_fps:0} FPS · {stats.DrawCalls} DRAW · {stats.Triangles / 1000} K TRI · {_world!.LoadedChunks} CHUNK";
+            StatsText.Text = $"{_fps:0} FPS · {stats.DrawCalls} DRAW · {stats.Triangles / 1000} K TRI · {_world!.LoadedChunks} CHUNK · {Viewport.Renderer?.Width} x {Viewport.Renderer?.Height} ({_viewMs:0} MS)";
         }
 
         MiniMap.InvalidateVisual();

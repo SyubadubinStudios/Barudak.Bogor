@@ -28,6 +28,8 @@ public enum GameEventKind
     Pickup,
     Ending,
     Saved,
+    /// <summary>A passer-by said something; Text is the line, Position where they stand.</summary>
+    Chatter,
 }
 
 public readonly record struct GameEvent(GameEventKind Kind, L Text, Vector3 Position = default, float Value = 0f);

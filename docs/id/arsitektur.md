@@ -37,7 +37,7 @@ tombol/mouse ─► InputState ─► GameSession.Update ─► state ─► Wor
 | `Sim` | `GameClock`, `WeatherSystem` |
 | `Entities` | `Player`, `Vehicle`, `Population` (lalu lintas, pejalan kaki, hewan) |
 | `Gameplay` | `GameSession`, `Progress`, event, penanda, dialog, `SaveSystem` |
-| `Missions` | Kelas dasar `Mission` dengan skrip langkah, `MissionManager`, delapan misi cerita |
+| `Missions` | Kelas dasar `Mission` dengan skrip langkah, `MissionManager`, sepuluh misi cerita dan tiga misi sampingan |
 | `Activities` | Mancing, game ritme di balik badminton dan karaoke, ojol, touring, fotografi, usaha bandrek |
 | `Localization` | `L(Id, En)`: setiap teks membawa dua bahasa di tempat ia ditulis |
 
@@ -57,7 +57,7 @@ Hal yang perlu diketahui sebelum mengubahnya:
 | `Rendering/WorldRenderer` | Streaming chunk 256 m di sekitar pemain; mesh dibangun di thread latar (`ChunkBuilder`) dan diunggah beberapa per frame. Ubin kasar 2 km di luarnya memberi siluet pegunungan |
 | `Rendering/ChunkBuilder` | Medan, tekstur tanah per chunk, pita jalan, bangunan digabung jadi satu mesh per chunk, pohon dan properti ber-instance |
 | `Rendering/Textures` | Melukis atlas fasad bangunan dan tekstur jalan saat mulai; basah dan cahaya jendela adalah parameter material |
-| `Rendering/EntityRenderer` | View yang dipakai ulang untuk pemain, kendaraan, orang, hewan, pemberi misi, dan penanda; jalan dan roda dianimasikan lewat kode dari bagian model yang bernama |
+| `Rendering/EntityRenderer` | View yang dipakai ulang untuk pemain, kendaraan, orang, hewan, pemberi misi, dan penanda; jalan dan roda dianimasikan lewat kode dari bagian model yang bernama; pemain adalah mesh berkulit di atas rangka tulang, digerakkan campuran klip Blender (diam, jalan, lari, duduk) |
 | `Rendering/Atmosphere` | Matahari, langit, kabut, garis hujan, lampu jalan |
 | `Rendering/CameraRig` | Kamera orang ketiga |
 | `Audio/GameAudio` | Semua suara disintesis saat mulai |
@@ -72,4 +72,4 @@ Hal yang perlu diketahui sebelum mengubahnya:
 
 ## Catatan performa
 
-Diukur dengan `--bench` pada 1280 x 720 di Intel UHD 620, hujan deras, sambil menyetir: Hemat 30 fps, Sedang 31 fps, Tinggi 18 fps, dengan sekitar 210 draw call dan 450 ribu segitiga. Frame dipompa dari refresh layar (`MainWindow.PumpFrame`) karena `DispatcherTimer` bawaan kontrol membulatkan setiap frame ke kisi timer Windows 15,6 ms. Mesin ini terikat piksel: isi adegan hampir tidak mengubah FPS, sedangkan resolusi dan efek pasca-proses mengubahnya.
+Diukur dengan `--bench` pada 1280 x 720 di Intel UHD 620, hujan deras, sambil menyetir: Hemat 55-60 fps, Sedang 30 fps, Tinggi 30 fps (resolusi adaptif menyala), dengan sekitar 210 draw call dan 450 ribu segitiga. Frame dipompa dari refresh layar (`MainWindow.PumpFrame`) karena `DispatcherTimer` bawaan kontrol membulatkan setiap frame ke kisi timer Windows 15,6 ms. Mesin ini terikat piksel: isi adegan hampir tidak mengubah FPS, sedangkan resolusi dan efek pasca-proses mengubahnya.

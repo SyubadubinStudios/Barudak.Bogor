@@ -8,7 +8,7 @@ Dibuat oleh Ariana Mischa Fadhila dari Syubadubin Studios. · [English](../en/ge
 
 - Windows 10 atau 11 64-bit (satu-satunya platform yang sudah diuji)
 - .NET SDK 10
-- GPU dengan DirectX 12. Grafis terintegrasi bisa: sekitar 30 fps di Intel UHD 620 pada kualitas Hemat atau Sedang.
+- GPU dengan DirectX 12. Grafis terintegrasi bisa: di Intel UHD 620 sekitar 55-60 fps pada Hemat dan 30 fps pada Sedang atau Tinggi.
 
 Rust **tidak** diperlukan untuk mem-build game: inti native Three.Net sudah tersedia di paket NuGet `ThreeNet.Native`.
 

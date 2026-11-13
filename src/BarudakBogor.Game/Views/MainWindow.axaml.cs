@@ -14,7 +14,6 @@ using BarudakBogor.Numerics;
 using BarudakBogor.Sim;
 using BarudakBogor.World;
 using ThreeNet;
-using ThreeNet.Avalonia;
 using Key = Avalonia.Input.Key;
 
 namespace BarudakBogor.Game.Views;
@@ -78,11 +77,8 @@ public partial class MainWindow : Window
         Deactivated += (_, _) => _down.Clear();
         Closed += (_, _) => Shutdown();
 
-        Viewport.EnableInteraction = false;
-        // The view's own timer ticks on the 15.6 ms Windows timer grid, which rounds every frame up
-        // to a multiple of it (a 20 ms frame becomes 31 ms). Frames are pumped from the display's
-        // refresh instead; see PumpFrame.
-        Viewport.IsRendering = false;
+        // Frames are pumped from the display's refresh; see PumpFrame. (A DispatcherTimer ticks on
+        // the 15.6 ms Windows timer grid, which rounds a 20 ms frame up to 31 ms.)
         Viewport.Frame += OnFrame;
         Viewport.RenderFailed += (_, message) => LoadingText.Text = message;
 
@@ -91,6 +87,9 @@ public partial class MainWindow : Window
     }
 
     private bool Playing => _screen == Screen.Playing;
+
+    /// <summary>True for a <c>--capture</c> tour or a <c>--bench</c> run: nothing is written to the player's files.</summary>
+    private static bool Scripted => Program.CaptureDirectory is not null || Program.BenchFile is not null;
 
     // ------------------------------------------------------------------ start-up
 
@@ -177,8 +176,116 @@ public partial class MainWindow : Window
         // made to wait an extra refresh for its successor to be scheduled.
         RequestAnimationFrame(PumpFrame);
         long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        double frameMs = _lastPump == 0 ? 0 : System.Diagnostics.Stopwatch.GetElapsedTime(_lastPump, started).TotalMilliseconds;
+        _lastPump = started;
         Viewport.RenderFrame();
         _viewMs = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        UpdateDynamicResolution(_viewMs, frameMs);
+    }
+
+    // ------------------------------------------------------------------ dynamic resolution
+
+    private long _lastPump;
+    private double _baseScale = 1.0;
+    private double _dynamicScale = 1.0;
+    private double _workSum;
+    private double _frameSum;
+    private int _workFrames;
+    private long _scaleSettle;
+    private long _noRaiseUntil;
+    private long _noSixtyUntil;
+
+    /// <summary>Back to the quality level's own resolution (after a quality switch, or when the option is turned off).</summary>
+    private void ResetDynamicResolution()
+    {
+        _dynamicScale = 1.0;
+        _workSum = 0;
+        _frameSum = 0;
+        _workFrames = 0;
+        _noRaiseUntil = 0;
+        _noSixtyUntil = 0;
+        // Shader compilation and chunk uploads make the first seconds unrepresentative.
+        _scaleSettle = Environment.TickCount64 + 2_500;
+        Viewport.RenderScale = _baseScale;
+    }
+
+    /// <summary>
+    /// Trades resolution for frame time. Frames are shown on display refreshes, so what matters
+    /// is which refresh a frame makes: every one (60 fps on a 60 Hz screen) or every second one
+    /// (30 fps). The controller drops pixels to stay on the second, tries for the first when it
+    /// is close, and takes pixels back whenever the frame is predicted to stay where it is.
+    /// The integrated GPUs this targets are pixel-bound, so resolution is the one setting that
+    /// reliably buys time.
+    /// </summary>
+    /// <param name="workMs">Time spent stepping the game, rendering and reading the picture back.</param>
+    /// <param name="frameMs">Time since the previous frame started.</param>
+    private void UpdateDynamicResolution(double workMs, double frameMs)
+    {
+        long now = Environment.TickCount64;
+        if (!_settings.DynamicResolution || (_captureDirectory is not null && _benchFile is null) || now < _scaleSettle || frameMs <= 0)
+        {
+            return;
+        }
+
+        _workSum += workMs;
+        _frameSum += frameMs;
+        if (++_workFrames < 20)
+        {
+            return;
+        }
+
+        double work = _workSum / _workFrames;
+        double frame = _frameSum / _workFrames;
+        _workSum = 0;
+        _frameSum = 0;
+        _workFrames = 0;
+
+        // Never below 45% of the window's pixels per axis: under that the picture falls apart.
+        double floor = Math.Min(1.0, Math.Max(0.6, 0.45 / _baseScale));
+        bool everyRefresh = frame <= 18.5;
+        bool everySecond = frame <= 35.5;
+        double next = _dynamicScale;
+        if (!everySecond)
+        {
+            next = Math.Max(floor, _dynamicScale - (frame > 45 ? 0.1 : 0.05));
+        }
+        else if (!everyRefresh && work < 15.5 && now >= _noSixtyUntil)
+        {
+            // The work nearly fits one refresh: see whether fewer pixels get it there.
+            if (_dynamicScale > floor)
+            {
+                next = Math.Max(floor, _dynamicScale - 0.05);
+            }
+            else
+            {
+                // It does not, even at the floor. Settle for every second refresh and stop trying for a while.
+                _noSixtyUntil = now + 300_000;
+                _noRaiseUntil = 0;
+            }
+        }
+        else if (_dynamicScale < 1.0 && now >= _noRaiseUntil)
+        {
+            // Take pixels back if the frame is predicted to stay on the refresh it makes now. The
+            // limits leave room for the window's own composition, which is not part of the work.
+            double candidate = Math.Min(1.0, _dynamicScale + 0.05);
+            double predicted = work * (candidate * candidate) / (_dynamicScale * _dynamicScale);
+            if (predicted < (everyRefresh ? 11.0 : 22.0))
+            {
+                next = candidate;
+            }
+        }
+
+        if (next < _dynamicScale - 0.001)
+        {
+            // Having just had to back off, do not climb straight back into the same trouble.
+            _noRaiseUntil = now + 8_000;
+        }
+
+        if (Math.Abs(next - _dynamicScale) > 0.001)
+        {
+            _dynamicScale = next;
+            Viewport.RenderScale = _baseScale * _dynamicScale;
+        }
     }
 
     private void Shutdown()
@@ -189,16 +296,22 @@ public partial class MainWindow : Window
             SaveGame(quiet: true);
         }
 
-        _settings.Save();
+        if (!Scripted)
+        {
+            _settings.Save();
+        }
+
         _world?.Dispose();
         _audio?.Dispose();
+        _pads?.Dispose();
     }
 
     private void ApplyQuality()
     {
-        (double scale, RendererOptions options, int radius, float rain, float crowd) = _settings.Quality switch
+        // radius, detail: chunks loaded in every direction, and how many of those rings are fully detailed.
+        (double scale, RendererOptions options, int radius, int detail, float rain, float crowd) = _settings.Quality switch
         {
-            Quality.Hemat => (0.55, RendererOptions.Default with { MsaaSamples = 1, Fxaa = true, Shadows = false, Bloom = false }, 2, 0.5f, 0.6f),
+            Quality.Hemat => (0.55, RendererOptions.Default with { MsaaSamples = 1, Fxaa = true, Shadows = false, Bloom = false }, 2, 1, 0.5f, 0.6f),
             Quality.Tinggi => (1.0, RendererOptions.Default with
             {
                 MsaaSamples = 4,
@@ -210,7 +323,12 @@ public partial class MainWindow : Window
                 Ssao = true,
                 SsaoRadius = 0.8f,
                 SsaoIntensity = 1.2f,
-            }, 3, 1f, 1f),
+                // Wet streets and puddles mirror the lights and whatever stands on them.
+                Ssr = true,
+                SsrIntensity = 0.55f,
+                SsrMaxDistance = 25f,
+                SsrSteps = 32,
+            }, 4, 3, 1f, 1f),
             _ => (0.72, RendererOptions.Default with
             {
                 MsaaSamples = 1,
@@ -220,10 +338,15 @@ public partial class MainWindow : Window
                 ShadowMapSize = 1024,
                 ShadowDistance = 90f,
                 Bloom = true,
-            }, 3, 0.8f, 0.85f),
+            }, 4, 2, 0.8f, 0.85f),
         };
 
-        Viewport.RenderScale = scale;
+        if (Math.Abs(_baseScale - scale) > 0.001 || !_settings.DynamicResolution)
+        {
+            _baseScale = scale;
+            ResetDynamicResolution();
+        }
+
         Viewport.RendererOptions = options with
         {
             BgraOutput = true,
@@ -232,16 +355,24 @@ public partial class MainWindow : Window
             Exposure = 1.05f,
             BloomIntensity = 0.35f,
             BloomThreshold = 1.1f,
-            ShadowSoftness = 1,
+            // A wider filter on the highest level takes the stair-steps off shadow edges.
+            ShadowSoftness = _settings.Quality == Quality.Tinggi ? 2 : 1,
         };
         if (_world is not null)
         {
             _world.Radius = radius;
-            _world.DetailRadius = radius;
+            _world.DetailRadius = detail;
+        }
+
+        if (_world is not null)
+        {
+            _world.DetailShading = _settings.Quality != Quality.Hemat;
         }
 
         if (_atmosphere is not null)
         {
+            _atmosphere.Volumes = _settings.Quality != Quality.Hemat;
+            _atmosphere.RayMarchedClouds = _settings.Quality == Quality.Tinggi;
             _atmosphere.RainDensity = rain;
         }
 
@@ -262,6 +393,8 @@ public partial class MainWindow : Window
 
         float dt = MathF.Min(e.DeltaSeconds, 0.05f);
         long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        PollGamepad();
+        HandleGamepadMenus(e.DeltaSeconds);
         UpdateCapture(dt, e.DeltaSeconds);
         if (_closed)
         {
@@ -292,7 +425,19 @@ public partial class MainWindow : Window
 
             case Screen.Playing:
                 InputState input = _scriptedInput ?? ReadInput(session, camera);
+                if (_scriptedInput is null)
+                {
+                    ApplyGamepad(ref input, session, camera, dt);
+                    HandleGamepadButtons(session, camera);
+                }
+
                 HandleHotkeys(session, camera);
+                if (_screen != Screen.Playing)
+                {
+                    // A controller button opened the menu during this frame.
+                    break;
+                }
+
                 session.Update(dt, input);
                 camera.Update(session, dt);
                 Present(session, camera.Position, dt);
@@ -323,8 +468,9 @@ public partial class MainWindow : Window
         _world!.Update(session.Player.Ground);
         _atmosphere!.Update(session, eye, dt);
         bool dark = session.Weather.IsBlackedOut(session.Player.Ground);
-        _world.SetConditions(session.Weather.Wetness, dark ? 0.04f : _atmosphere.NightGlow);
-        _entities!.Update(session, eye, dt, _atmosphere.NightGlow);
+        _world.SetConditions(session.Weather.Wetness, dark ? 0.04f : _atmosphere.NightGlow, session.Weather.Rain);
+        _entities!.HidePlayer = Playing && _camera!.HidesPlayer;
+        _entities.Update(session, eye, dt, _atmosphere.NightGlow);
         _audio!.Update(session, Playing);
     }
 
@@ -338,6 +484,7 @@ public partial class MainWindow : Window
             switch (gameEvent.Kind)
             {
                 case GameEventKind.Toast:
+                case GameEventKind.Chatter:
                     Toast(gameEvent.Text.Text);
                     break;
                 case GameEventKind.Money:
@@ -507,10 +654,28 @@ public partial class MainWindow : Window
             SaveGame(quiet: false);
         }
 
+        if (Pressed(Key.V))
+        {
+            ToggleCameraView();
+        }
+
         if (Pressed(Key.F3))
         {
             _settings.ShowStats = !_settings.ShowStats;
         }
+    }
+
+    /// <summary>Switches between the chase camera and the view from the seat.</summary>
+    private void ToggleCameraView()
+    {
+        if (_camera is null || _session is null)
+        {
+            return;
+        }
+
+        _camera.View = _camera.View == CameraView.Chase ? CameraView.Cockpit : CameraView.Chase;
+        _camera.Snap(_session);
+        Toast((_camera.View == CameraView.Cockpit ? Ui.ViewCockpit : Ui.ViewChase).Text);
     }
 
     private void TakePhoto(GameSession session, CameraRig camera)
@@ -542,6 +707,12 @@ public partial class MainWindow : Window
 
     private void SaveGame(bool quiet)
     {
+        if (Scripted)
+        {
+            // A screenshot tour or a benchmark must never touch the player's real save.
+            return;
+        }
+
         if (_session is not { } session || session.Missions.Active is not null)
         {
             if (!quiet)

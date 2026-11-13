@@ -71,6 +71,11 @@ public sealed class WorldMap
     private readonly List<Building> _buildings = [];
     private readonly List<Prop> _props = [];
     private readonly Dictionary<PoiId, Poi> _pois = [];
+    private readonly List<Bridge> _bridges = [];
+    private readonly List<LevelCrossing> _crossings = [];
+    private readonly List<Slab> _slabs = [];
+    private readonly List<Sign> _signs = [];
+    private readonly List<Building> _solids = [];
 
     internal WorldMap(uint seed, District[] districts, Pond[] ponds)
     {
@@ -96,6 +101,22 @@ public sealed class WorldMap
     public IReadOnlyList<Prop> Props => _props;
 
     public IReadOnlyCollection<Poi> Pois => _pois.Values;
+
+    /// <summary>Rivers and railways.</summary>
+    public IReadOnlyList<Corridor> Corridors => Terrain.Corridors;
+
+    /// <summary>The railway, when the map has one.</summary>
+    public Corridor? Railway => Terrain.Corridors.FirstOrDefault(c => c.Kind == CorridorKind.Rail);
+
+    public IReadOnlyList<Bridge> Bridges => _bridges;
+
+    public IReadOnlyList<LevelCrossing> Crossings => _crossings;
+
+    /// <summary>Name boards of the well-known places.</summary>
+    public IReadOnlyList<Sign> Signs => _signs;
+
+    /// <summary>Plain masonry boxes: station platform, canopy, posts.</summary>
+    public IReadOnlyList<Slab> Slabs => _slabs;
 
     public Poi this[PoiId id] => _pois[id];
 
@@ -200,6 +221,31 @@ public sealed class WorldMap
     public Vector2 ResolveCircle(Vector2 position, float radius, out Vector2 push)
     {
         push = Vector2.Zero;
+        // Being pushed out of one wall can land inside the next (terraced rows), so go round again
+        // until nothing pushes back.
+        for (int pass = 0; pass < 4; pass++)
+        {
+            position = ResolveOnce(position, radius, out Vector2 step);
+            push += step;
+            if (step == Vector2.Zero)
+            {
+                return position;
+            }
+        }
+
+        // Still wedged between two walls that push against each other: step out to the street.
+        if (IsInsideBuilding(position) && Roads.Nearest(position, 150f) is { } street)
+        {
+            push += street.Point - position;
+            position = street.Point;
+        }
+
+        return position;
+    }
+
+    private Vector2 ResolveOnce(Vector2 position, float radius, out Vector2 push)
+    {
+        push = Vector2.Zero;
         int cx = (int)MathF.Floor(position.X / CollisionCell);
         int cz = (int)MathF.Floor(position.Y / CollisionCell);
         for (int z = cz - 1; z <= cz + 1; z++)
@@ -229,6 +275,15 @@ public sealed class WorldMap
                         }
                     }
                 }
+            }
+        }
+
+        // Walls and furniture of the walk-in rooms: few enough to test one by one.
+        foreach (Building solid in _solids)
+        {
+            if (Vector2.DistanceSquared(solid.Center, position) < 400f && PushOutOfBox(solid, ref position, radius, out Vector2 delta))
+            {
+                push += delta;
             }
         }
 
@@ -308,6 +363,21 @@ public sealed class WorldMap
     internal void SetPuncakCenter(Vector2 center) => _puncakCenter = center;
 
     internal void AddPoi(Poi poi) => _pois[poi.Id] = poi;
+
+    internal void AddBridge(Bridge bridge) => _bridges.Add(bridge);
+
+    internal void AddCrossing(LevelCrossing crossing) => _crossings.Add(crossing);
+
+    internal void AddSlab(Slab slab)
+    {
+        _slabs.Add(slab);
+        if (slab.Solid)
+        {
+            _solids.Add(new Building(slab.Center, slab.HalfWidth, slab.HalfDepth, slab.Yaw, slab.Top - slab.Bottom, BuildingStyle.Kios, 0u, slab.Bottom));
+        }
+    }
+
+    internal void AddSign(Sign sign) => _signs.Add(sign);
 
     internal void AddBuilding(Building building)
     {
