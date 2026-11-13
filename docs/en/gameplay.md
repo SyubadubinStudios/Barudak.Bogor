@@ -25,9 +25,9 @@ The map is 40 km x 40 km with Tugu Kujang at its centre. East is right, south is
 | Pasar Anyar | Market tents, kiosks, crowds: the best place to sell bandrek |
 | Selot Alley | A maze of alleys only motorbikes and carts fit through |
 | Empang | Kampung houses, the fishing pond, the badminton court, your rented room |
-| Dramaga | The IPB campus, the angkot terminal, Situ Gede lake |
-| Sentul | Wide streets, the circuit, reached by the Jagorawi toll road |
-| Puncak | Hairpins, tea fields, pine forest, fog, monkeys and the Mysterious Villa |
+| Dramaga | The IPB campus, the angkot terminal and Situ Gede lake to its north-east, all where they really are, north-west of the city |
+| Sentul | The Sentul circuit and its housing estates in the north, reached by the Jagorawi toll road |
+| Puncak | Puncak Road from Ciawi up to Cisarua: tea fields, pine forest, fog, monkeys and the Mysterious Villa |
 
 ![Map](../images/peta.png)
 
@@ -91,15 +91,49 @@ Driving at pedestrians costs Walikota reputation. They always jump clear.
 
 ## The city
 
-The centre of the map is laid out like the real Bogor, measured from Tugu Kujang: the loop round the Botanical Gardens (Pajajaran, Otista, Juanda, Jalak Harupat), the main streets, the Ciliwung and the commuter railway follow their true lines (map data © OpenStreetMap contributors). Side streets are generated.
+The whole map is laid out like the real Bogor, measured from Tugu Kujang (map data © OpenStreetMap contributors): the loop round the Botanical Gardens (Pajajaran, Otista, Juanda, Jalak Harupat), every main road out to the edge of the map, the Jagorawi, Bogor Outer Ring and Bocimi toll roads, the Ciliwung and the Cisadane, the commuter railway, and the line to Sukabumi that leaves from Bogor Paledang. The side streets and alleys of the city centre, Dramaga, Sentul and Cisarua are the real ones too. Outside those four areas only the main roads are there.
+
+What is not exact: the real Puncak Pass and Telaga Warna lie about 2 km beyond the eastern edge of the map, so the game puts them at Cisarua. Toll interchanges are drawn on the level, without flyovers.
 
 ![City map](../images/peta-kota.png)
 
-Places you can find and fast-travel to include Bogor Palace, the museums (Zoology, PETA, Soil and Agriculture), the malls (Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Ekalokasari, Lotte Mart, Bogor Great Mall), the Suryakencana gate, the Fountain, Sempur Field, Pajajaran Sports Ground, Bogor Station and Baranangsiang Terminal. Their buildings are generic; there are no signs yet.
+Places you can find and fast-travel to include Bogor Palace, the museums (Zoology, PETA, Soil and Agriculture), the malls (Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Ekalokasari, Lotte Mart, Bogor Great Mall), the Suryakencana gate, the Fountain, Sempur Field, Pajajaran Sports Ground, Bogor Station and Baranangsiang Terminal. All of them carry a name board. Bogor Palace, the three museums, City Hall, the Cathedral, the Grand Mosque and the Suryakencana gate have buildings of their own; the malls are still plain blocks.
 
 ![Bogor Station](../images/stasiun.png)
 
 The commuter train leaves Bogor Station every few minutes and comes back. It stops for anyone on the track, and traffic waits at the level crossings.
+
+## Street life
+
+![Traffic lights](../images/lampu-merah.png)
+
+Other vehicles do not pass through one another: they queue, go round an angkot that has stopped for passengers when the oncoming lane is clear, take turns at junctions and stop at red lights. The lights stand where main roads meet in town, and each arm gets its turn at green. They bind the traffic only: you are free to go, and nobody writes tickets.
+
+![Street people](../images/warga-badut.png)
+
+Among the townsfolk are hawkers with carrying poles, police officers, civil servants in khaki (mornings and late afternoons), clowns (daytime), buskers and punks (afternoon into the night). Police, clowns, buskers and punks stand about more than they walk.
+
+![Pigeons](../images/burung-terbang.png)
+
+Flocks of pigeons peck about at Tugu Kujang, Alun-Alun, Pasar Anyar, the Grand Mosque, the station, City Hall, Sempur and the Gardens gate. Walk up to them (or drive past) and they fly off and come down somewhere else. Monkeys now also live in the Gardens near the gate, and chickens roam around Ujang's lodging, Empang and Gang Selot.
+
+Along the streets of the centre there are banners, shop light boxes that glow at night, CCTV masts and LED screens whose advert changes every six seconds.
+
+## Life in the water
+
+![Lily pads](../images/teratai.png)
+
+The three ponds (Empang, Situ Gede, Telaga Warna) and both rivers are lived in. Every pond has carp swimming just under the surface, turtles with their shells showing, and ducks. Along the Ciliwung and the Cisadane there is a shoal of fish about every 400 m, and in turn turtles, ducks or a single crocodile.
+
+![Crocodile](../images/buaya.png)
+
+The crocodile is lazy and harmless: it drifts, and swims away when you come close. Fish dart off when you get into the water; turtles and ducks keep their distance too. No water animal ever comes ashore.
+
+Lily pads and water hyacinth float near the banks, and reeds grow in the shallows. They are scenery only: you can swim through them and they do not get in the way of fishing.
+
+![Swimming](../images/berenang.png)
+
+In the water your character swims while moving and treads water when still. The jump (Space) now has a movement of its own, and so have fishing, badminton and karaoke.
 
 ## More missions
 

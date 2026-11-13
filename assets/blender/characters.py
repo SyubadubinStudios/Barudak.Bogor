@@ -74,6 +74,32 @@ def human(A, c):
         T.box("cloth_yellow", (0.1, -0.1, 1.3), (0.06, 0.012, 0.06))
     if "stripe" in ex:                                    # reflective / jacket stripe
         T.box(c.get("stripe", "white"), (0, 0, 1.27), (0.36, 0.2, 0.035))
+    if "sash" in ex:                                      # white cross belt of the traffic police
+        T.box("cloth_white", (0, -0.1, 1.2), (0.36, 0.012, 0.045), rot=(0, 40, 0))
+        T.box("cloth_white", (0, 0, 0.99), (0.32, 0.2, 0.045))
+        T.box("black", (-0.17, 0, 0.93), (0.05, 0.12, 0.16))             # holster for the whistle and the book
+    if "guitar" in ex:                                    # the busker's kentrung, slung across the belly
+        T.tbox("wood_light", (0.06, -0.15, 1.02), (0.3, 0.07, 0.24), top=(0.8, 1), rot=(0, 28, 0))
+        T.cyl("black", (0.06, -0.19, 1.02), 0.045, 0.01, axis="y", segs=8)
+        T.limb("wood_dark", (-0.06, -0.15, 1.09), (-0.42, -0.15, 1.3), 0.022, 0.018, segs=4)
+        T.box("wood_dark", (-0.45, -0.15, 1.32), (0.09, 0.03, 0.06), rot=(0, 28, 0))
+        T.box("cloth_red", (0, -0.1, 1.22), (0.34, 0.012, 0.025), rot=(0, 30, 0))    # strap
+    if "pikulan" in ex:                                   # carrying pole with a basket fore and aft
+        T.limb("bamboo_dry", (0.17, -0.85, 1.47), (0.17, 0.85, 1.47), 0.02, 0.02, segs=4)
+        for sy, load in ((-1, "veg_green"), (1, "veg_orange")):
+            for dx in (-0.1, 0.1):
+                T.limb("thatch", (0.17, sy * 0.78, 1.46), (0.17 + dx, sy * 0.78, 0.82), 0.006, segs=3)
+            T.cyl("bamboo_dry", (0.17, sy * 0.78, 0.7), 0.2, 0.24, r2=0.24, segs=8)
+            T.dome(load, (0.17, sy * 0.78, 0.8), 0.2, segs=8, rings=3, scale=(1, 1, 0.5))
+    if "chain" in ex:                                     # wallet chain and studded belt
+        T.limb("chrome", (0.16, -0.09, 0.98), (0.2, 0.02, 0.8), 0.008, segs=3)
+        T.limb("chrome", (0.2, 0.02, 0.8), (0.14, 0.1, 0.96), 0.008, segs=3)
+        for x in (-0.1, 0.0, 0.1):
+            T.box("chrome", (x, -0.1, 0.99), (0.025, 0.012, 0.025))
+    if "ruffle" in ex:                                    # clown collar and buttons
+        T.cyl(c.get("ruffle", "cloth_white"), (0, 0, 1.43), 0.2, 0.05, r2=0.1, segs=10)
+        for z in (1.32, 1.2, 1.08):
+            T.sphere(c.get("pompom", "cloth_red"), (0, -0.105, z), 0.035, segs=6, rings=3)
 
     # ---- arms
     long = c.get("sleeve", "short") == "long"
@@ -86,13 +112,25 @@ def human(A, c):
         P.box(skin, (x + sx * 0.005, -0.005, 0.79), (0.065, 0.09, 0.1))
 
     # ---- head
-    Hd.sphere(skin, (0, 0, 1.585), 0.115, segs=8, rings=5, scale=(0.92, 1.0, 1.08))
+    Hd.sphere(c.get("face", skin), (0, 0, 1.585), 0.115, segs=8, rings=5, scale=(0.92, 1.0, 1.08))
+    if "nose" in ex:                                      # red nose and a painted smile
+        Hd.sphere("red", (0, -0.125, 1.575), 0.032, segs=6, rings=4)
+        Hd.box("red", (0, -0.108, 1.525), (0.07, 0.012, 0.018))
     for sx in (-1, 1):
         Hd.box("eye", (sx * 0.042, -0.104, 1.595), (0.024, 0.016, 0.026))
     gear = c.get("gear")
     gcol = c.get("gear_col", "cloth_navy")
     hair = c.get("hair", "hair")
-    if gear != "hijab" and gear != "helmet":
+    if gear == "mohawk":                                  # shaved sides, a dyed crest
+        Hd.dome(hair, (0, 0.012, 1.6), 0.118, segs=8, rings=4, scale=(0.95, 1.0, 0.9))
+        Hd.prism(gcol, [(-0.11, 1.68), (-0.07, 1.82), (-0.03, 1.72), (0.0, 1.85), (0.04, 1.73), (0.07, 1.82),
+                        (0.11, 1.68), (0.13, 1.6), (-0.1, 1.66)], 0.03)
+    elif gear == "wig":                                   # clown's curls: a ball over each ear, one on top
+        for x, z, r in ((-0.11, 1.63, 0.085), (0.11, 1.63, 0.085), (0, 1.71, 0.08), (-0.06, 1.69, 0.07), (0.06, 1.69, 0.07)):
+            Hd.sphere(gcol, (x, 0.03, z), r, segs=6, rings=4)
+        Hd.cyl(c.get("hat", "cloth_yellow"), (0, 0, 1.83), 0.06, 0.12, r2=0.045, segs=8)
+        Hd.cyl(c.get("hat", "cloth_yellow"), (0, 0, 1.775), 0.1, 0.012, segs=8)
+    elif gear != "hijab" and gear != "helmet":
         Hd.dome(hair, (0, 0.012, 1.612), 0.124, segs=8, rings=4, scale=(0.95, 1.0, 0.92))
         Hd.box(hair, (0, 0.065, 1.56), (0.2, 0.1, 0.13))
     if gear == "cap":
@@ -101,6 +139,11 @@ def human(A, c):
     elif gear == "bucket":
         Hd.dome(gcol, (0, 0.005, 1.64), 0.125, segs=8, rings=4, scale=(1, 1, 0.75))
         Hd.cyl(gcol, (0, 0.005, 1.645), 0.215, 0.05, r2=0.12, segs=8)
+    elif gear == "police_cap":
+        Hd.cyl(gcol, (0, 0.005, 1.7), 0.125, 0.06, r2=0.14, segs=8)
+        Hd.cyl("black", (0, 0.005, 1.675), 0.127, 0.025, segs=8)
+        Hd.box("black", (0, -0.15, 1.665), (0.17, 0.1, 0.014), rot=(10, 0, 0))
+        Hd.box("gold", (0, -0.128, 1.71), (0.04, 0.012, 0.04))
     elif gear == "peci":
         Hd.cyl(gcol, (0, 0.008, 1.715), 0.1, 0.1, segs=8, scale=(0.92, 1.1, 1))
     elif gear == "caping":
@@ -151,6 +194,22 @@ CAST = {
     "npc_ojol": dict(shirt="cloth_black", jacket="ojol_green", pants="denim", shoes="shoe",
                      gear="helmet", gear_col="ojol_green", sleeve="long", extras=("stripe",),
                      stripe="cloth_black"),
+    # ---- street life
+    "npc_pkl": dict(shirt="cloth_white", pants="cloth_brown", shoes="sandal", gear="caping",
+                    gear_col="bamboo_dry", extras=("pikulan", "shorts", "towel"), skin="skin_dark"),
+    "npc_polisi": dict(shirt="police_brown", pants="police_dark", shoes="shoe", gear="police_cap",
+                       gear_col="police_dark", jacket="hivis", sleeve_col="police_brown",
+                       extras=("sash", "badge", "collar"), collar="police_brown"),
+    "npc_pns": dict(shirt="cloth_khaki", pants="cloth_khaki", shoes="shoe", gear="peci",
+                    gear_col="cloth_black", extras=("belt", "badge", "collar", "bag"), collar="cloth_khaki",
+                    bag="cloth_black"),
+    "npc_badut": dict(shirt="cloth_yellow", pants="cloth_blue", shoes="red", gear="wig", gear_col="cloth_orange",
+                      sleeve="long", sleeve_col="cloth_red", face="clown_white", hat="cloth_purple",
+                      extras=("nose", "ruffle", "untucked"), pompom="cloth_red"),
+    "npc_pengamen": dict(shirt="cloth_red", pants="denim", shoes="sandal", gear="bucket",
+                         gear_col="cloth_black", extras=("guitar", "untucked"), skin="skin_dark"),
+    "npc_anak_punk": dict(shirt="cloth_black", pants="cloth_black", shoes="shoe", gear="mohawk",
+                          gear_col="punk_pink", extras=("vest", "chain"), vest="denim", height=1.64),
 }
 
 

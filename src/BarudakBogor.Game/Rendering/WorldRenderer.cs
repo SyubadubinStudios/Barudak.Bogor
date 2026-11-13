@@ -38,6 +38,9 @@ public sealed class WorldRenderer : IDisposable
     private readonly ConcurrentQueue<(int X, int Z, MeshData Mesh, byte[] Pixels)> _farReady = new();
     private readonly List<(int, int)> _scratch = [];
     private readonly Material? _billboard;
+    private readonly Material? _screen;
+    private readonly List<Texture> _screenPictures = [];
+    private int _screenPicture = -1;
     private float _lastWetness = -1f;
     private float _lastGlow = -1f;
     private bool _disposed;
@@ -54,6 +57,31 @@ public sealed class WorldRenderer : IDisposable
             _billboard = scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.7f) with
             {
                 BaseColorMap = scene.LoadTexture(poster),
+                CullMode = CullMode.None,
+            });
+        }
+
+        // The big LED screens all run the same loop of advertisements.
+        string[] adverts = ["ad.bandrek", "ad.tahubulat", "ad.kotahujan", "ad.angkot"];
+        for (int i = 0; i < adverts.Length; i++)
+        {
+            string[] lines = BarudakBogor.Localization.Loc.Name(adverts[i]).Id.Split('|');
+            if (SignPainter.PaintScreen(lines[0], lines.Length > 1 ? lines[1] : string.Empty, i) is { } pixels)
+            {
+                Texture picture = scene.CreateTexture(SignPainter.Width, SignPainter.ScreenHeight, pixels);
+                picture.SetSampler(WrapMode.ClampToEdge, WrapMode.ClampToEdge, true, true, 4);
+                _screenPictures.Add(picture);
+            }
+        }
+
+        if (_screenPictures.Count > 0)
+        {
+            _screen = scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.5f) with
+            {
+                BaseColorMap = _screenPictures[0],
+                EmissiveMap = _screenPictures[0],
+                Emissive = Vector3.One,
+                EmissiveIntensity = 1.5f,
                 CullMode = CullMode.None,
             });
         }
@@ -109,7 +137,7 @@ public sealed class WorldRenderer : IDisposable
         }
     }
 
-    private readonly List<(Node Node, Vector2 Position)> _signs = [];
+    private readonly List<(Node Node, Vector2 Position, float Range)> _signs = [];
 
     /// <summary>
     /// Name boards for the well-known places. The lettering is drawn once with the interface's
@@ -130,43 +158,68 @@ public sealed class WorldRenderer : IDisposable
             new(new Vector3(-0.5f, 0.5f, 0f), Vector3.UnitZ, new Vector2(0f, 0f)),
         ];
         Geometry board = _scene.CreateGeometry(vertices, [0u, 1u, 2u, 0u, 2u, 3u]);
+        // The same banner hangs in many streets: one painting for each wording.
+        Dictionary<(string, SignLook), Material?> painted = [];
         foreach (Sign sign in _map.Signs)
         {
-            string text = BarudakBogor.Localization.Loc.Name(sign.NameKey).Id.ToUpperInvariant();
-            if (SignPainter.Paint(text) is not { } pixels)
+            if (!painted.TryGetValue((sign.NameKey, sign.Look), out Material? material))
+            {
+                string text = BarudakBogor.Localization.Loc.Name(sign.NameKey).Id.ToUpperInvariant();
+                if (SignPainter.Paint(text, sign.Look) is { } pixels)
+                {
+                    Texture texture = _scene.CreateTexture(SignPainter.Width, SignPainter.HeightOf(sign.Look), pixels);
+                    texture.SetSampler(WrapMode.ClampToEdge, WrapMode.ClampToEdge, true, true, 4);
+                    material = _scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.6f) with
+                    {
+                        BaseColorMap = texture,
+                        EmissiveMap = texture,
+                        Emissive = Vector3.One,
+                        // A board glows a little so it reads at night; a light box is a lamp; cloth is cloth.
+                        EmissiveIntensity = sign.Look switch { SignLook.LightBox => 1.15f, SignLook.Banner => 0.1f, _ => 0.55f },
+                        CullMode = CullMode.None,
+                    });
+                }
+
+                painted[(sign.NameKey, sign.Look)] = material;
+            }
+
+            if (material is null)
             {
                 continue;
             }
 
-            Texture texture = _scene.CreateTexture(SignPainter.Width, SignPainter.Height, pixels);
-            texture.SetSampler(WrapMode.ClampToEdge, WrapMode.ClampToEdge, true, true, 4);
-            Material material = _scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.6f) with
-            {
-                BaseColorMap = texture,
-                EmissiveMap = texture,
-                Emissive = Vector3.One,
-                EmissiveIntensity = 0.55f,
-                CullMode = CullMode.None,
-            });
             Node node = _scene.AddMesh(board, material, name: "papan_nama");
-            float height = sign.Width * SignPainter.Height / SignPainter.Width;
+            float height = sign.Width * SignPainter.HeightOf(sign.Look) / SignPainter.Width;
             Vector2 facing = MathUtil.Forward(sign.Yaw);
-            // A hand's breadth off the wall, so it never fights with it for depth.
-            node.Position = new Vector3(sign.Position.X + (facing.X * 0.12f), sign.Height, sign.Position.Y + (facing.Y * 0.12f));
+            // A hand's breadth off the wall, so it never fights with it for depth; cloth and glass need less.
+            float off = sign.Look == SignLook.Board ? 0.12f : 0.025f;
+            node.Position = new Vector3(sign.Position.X + (facing.X * off), sign.Height, sign.Position.Y + (facing.Y * off));
             node.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, sign.Yaw);
             node.Scale = new Vector3(sign.Width, height, 1f);
             node.CastShadow = false;
             node.Visible = false;
-            _signs.Add((node, sign.Position));
+            _signs.Add((node, sign.Position, sign.Look == SignLook.Board ? 700f : 230f));
         }
     }
 
     /// <summary>Schedules, uploads and unloads chunks for the current focus point.</summary>
     public void Update(Vector2 focus, int uploadsPerFrame = 2)
     {
-        foreach ((Node node, Vector2 position) in _signs)
+        foreach ((Node node, Vector2 position, float range) in _signs)
         {
-            node.Visible = Vector2.DistanceSquared(position, focus) < 700f * 700f;
+            node.Visible = Vector2.DistanceSquared(position, focus) < range * range;
+        }
+
+        if (_screen is not null)
+        {
+            // A new advertisement every six seconds.
+            int picture = (int)(Environment.TickCount64 / 6000 % _screenPictures.Count);
+            if (picture != _screenPicture)
+            {
+                _screenPicture = picture;
+                Texture shown = _screenPictures[picture];
+                _screen.Update(options => options with { BaseColorMap = shown, EmissiveMap = shown });
+            }
         }
 
         (int cx, int cz) = WorldMap.ChunkOf(focus);
@@ -280,6 +333,10 @@ public sealed class WorldRenderer : IDisposable
                     // The blank face of the billboard is the only single quad of the model.
                     skin = _billboard;
                 }
+                else if (model == "videotron" && _screen is not null && primitive.Geometry.Counts.Vertices <= 6)
+                {
+                    skin = _screen;
+                }
 
                 for (int i = 0; i < matrices.Length; i++)
                 {
@@ -295,7 +352,7 @@ public sealed class WorldRenderer : IDisposable
                 }
 
                 // Bushes and lamp posts are too small for their shadows to be worth a pass.
-                node.CastShadow = model is not ("semak_teh" or "lampu_jalan" or "rambu_angkot");
+                node.CastShadow = model is not ("semak_teh" or "lampu_jalan" or "rambu_angkot" or "lampu_merah" or "cctv" or "light_box");
             }
         }
 

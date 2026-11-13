@@ -434,5 +434,7 @@ saves/
 # Build output of the packaging scripts
 /dist/
 
-# Three.Net builds not yet on nuget.org (see nuget.config)
-!packages-local/*.nupkg
+
+# OpenStreetMap downloads and the outputs of tools/osm/build_streets.py
+/tools/osm/*.json
+/tools/osm/*.txt

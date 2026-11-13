@@ -2,8 +2,8 @@
 
     blender --background --python assets/blender/rig_bones.py [-- name ...]
 
-Writes assets/models/<name>_rig.glb: one skinned mesh, twelve bones and four clips
-(idle, walk, run, sit). The game uses it for the player; the part-sliced <name>.glb from
+Writes assets/models/<name>_rig.glb: one skinned mesh, twelve bones and ten clips
+(idle, walk, run, sit, jump, swim, tread, fish, badminton, sing). The game uses it for the player; the part-sliced <name>.glb from
 rig_rodin.py stays, for the crowd, where a skinned mesh per person would cost too much.
 
 The weights are painted by rule, not by Blender's automatic weighting, which gives up on
@@ -242,6 +242,100 @@ def sit(a, frame, u):
     a.lift(frame, 0.0)
 
 
+def jump(a, frame, u):
+    """Not a loop: the game scrubs it by how fast the body is rising. 0 = pushing off, 0.5 = the
+    top of the jump with the knees drawn up, 1 = reaching for the ground."""
+    def key(off, top, land):
+        return off + (top - off) * ss(0.0, 0.5, u) + (land - top) * ss(0.5, 1.0, u)
+
+    thigh, knee = key(0.18, -0.95, -0.4), key(0.15, 1.45, 0.45)
+    a.legs(frame, thigh, thigh * 0.8 - 0.05, knee, knee * 0.9)
+    arm, elbow = key(-1.3, -2.3, -0.7), key(0.5, 0.35, 0.6)
+    a.arms(frame, arm, arm, elbow, elbow, spread=key(0.1, 0.55, 0.4))
+    a.turn("hips", frame, rx=key(0.12, -0.05, 0.16))
+    a.turn("spine", frame, rx=key(0.05, 0.08, 0.1))
+    a.turn("chest", frame, rx=key(0.0, 0.08, 0.1))
+    a.turn("head", frame, rx=key(-0.2, -0.05, 0.1))
+    a.lift(frame, 0.0)
+
+
+def swim(a, frame, u):
+    """A crawl: the body lies forward from the hips, the arms reach and pull in turn, the legs flutter."""
+    t = u * math.tau
+    a.turn("hips", frame, rx=1.28, rz=0.1 * math.sin(t))
+    a.turn("spine", frame, rx=0.04, rz=-0.08 * math.sin(t))
+    a.turn("chest", frame, rx=-0.06, rz=-0.12 * math.sin(t))
+    a.turn("head", frame, rx=-0.85, rz=0.25 * max(0.0, math.sin(t)) ** 2)
+    for side, tag, phase in ((1, "l", 0.0), (-1, "r", math.pi)):
+        # Forward over the water with the arm lifted clear, back through it close to the body.
+        over = max(0.0, math.sin(t + phase))
+        a.turn("arm_" + tag, frame, rx=-1.6 - 1.3 * math.cos(t + phase), ry=side * (ARM_DOWN - 0.75 * over))
+        a.turn("forearm_" + tag, frame, rz=-side * (0.25 + 0.7 * over))
+    kick = 0.28 * math.sin(2 * t)
+    a.legs(frame, kick, -kick, 0.22 + 0.2 * max(0.0, -math.sin(2 * t)), 0.22 + 0.2 * max(0.0, math.sin(2 * t)))
+    a.lift(frame, 0.01 * a.h * math.sin(2 * t))
+
+
+def tread(a, frame, u):
+    """Staying afloat on the spot: upright, the hands sculling out to the sides, the legs pedalling."""
+    t = u * math.tau
+    s = math.sin(t)
+    a.turn("hips", frame, rx=0.1)
+    a.turn("spine", frame, rx=0.02)
+    a.turn("chest", frame, rx=-0.02)
+    a.turn("head", frame, rx=-0.12)
+    a.arms(frame, -0.35 + 0.25 * math.cos(t), -0.35 - 0.25 * math.cos(t), 0.55 + 0.2 * s, 0.55 - 0.2 * s, spread=0.85 + 0.2 * math.sin(2 * t))
+    a.legs(frame, -0.5 - 0.3 * s, -0.5 + 0.3 * s, 0.9 - 0.3 * s, 0.9 + 0.3 * s)
+    a.lift(frame, 0.012 * a.h * math.sin(2 * t))
+
+
+def fish(a, frame, u):
+    """Holding a rod out over the water with both hands, lifting the tip now and then."""
+    t = u * math.tau
+    twitch = max(0.0, math.sin(t)) ** 6
+    a.turn("hips", frame, rx=0.04, rz=0.05)
+    a.turn("spine", frame, rx=0.03 - 0.03 * twitch)
+    a.turn("chest", frame, rx=0.02 - 0.04 * twitch, rz=-0.05)
+    a.turn("head", frame, rx=0.06, rz=0.03 * math.sin(t * 0.5))
+    a.arms(frame, -0.62 - 0.2 * twitch, -0.8 - 0.25 * twitch, 1.3 + 0.2 * twitch, 1.0 + 0.2 * twitch, spread=-0.08)
+    a.legs(frame, -0.08, 0.08, 0.06, 0.1)
+    a.lift(frame, -0.004 * a.h)
+
+
+def badminton(a, frame, u):
+    """On the toes with bent knees, the racket arm wound up over the shoulder, then the smash."""
+    t = u * math.tau
+    hit = ss(0.42, 0.56, u) * (1 - ss(0.62, 0.95, u))
+    bounce = 0.5 - 0.5 * math.cos(2 * t)
+    a.turn("hips", frame, rx=0.14 + 0.1 * hit, rz=-0.22 + 0.5 * hit)
+    a.turn("spine", frame, rx=0.05, rz=-0.1 + 0.2 * hit)
+    a.turn("chest", frame, rx=0.02 + 0.1 * hit, rz=-0.1 + 0.25 * hit)
+    a.turn("head", frame, rx=-0.2 + 0.15 * hit, rz=0.2 - 0.3 * hit)
+    # Left arm out for balance, right arm from behind the head down across the body.
+    a.turn("arm_l", frame, rx=-0.9 + 0.6 * hit, ry=ARM_DOWN - 0.55)
+    a.turn("forearm_l", frame, rz=-0.5)
+    a.turn("arm_r", frame, rx=-2.75 + 2.1 * hit, ry=-(ARM_DOWN - 0.35 + 0.3 * hit))
+    a.turn("forearm_r", frame, rz=1.5 - 1.3 * hit)
+    a.legs(frame, -0.42 - 0.08 * bounce, -0.28 - 0.08 * bounce, 0.75 + 0.15 * bounce, 0.6 + 0.15 * bounce)
+    a.lift(frame, -a.h * (0.035 + 0.012 * bounce))
+
+
+def sing(a, frame, u):
+    """Karaoke: the microphone hand at the mouth, the other one telling the story, a sway from the hips."""
+    t = u * math.tau
+    s = math.sin(t)
+    a.turn("hips", frame, rz=0.09 * s)
+    a.turn("spine", frame, rx=-0.02, rz=-0.04 * s)
+    a.turn("chest", frame, rx=-0.05, rz=-0.05 * s)
+    a.turn("head", frame, rx=-0.14 + 0.06 * math.sin(2 * t), rz=0.08 * s)
+    a.turn("arm_r", frame, rx=-1.05, ry=-(ARM_DOWN - 0.12))
+    a.turn("forearm_r", frame, rz=2.05)
+    a.turn("arm_l", frame, rx=-0.45 - 0.3 * max(0.0, s), ry=ARM_DOWN - 0.45 - 0.3 * max(0.0, s))
+    a.turn("forearm_l", frame, rz=-(0.5 + 0.3 * max(0.0, -s)))
+    a.legs(frame, -0.04 - 0.05 * s, -0.04 + 0.05 * s, 0.1 + 0.08 * max(0.0, s), 0.1 + 0.08 * max(0.0, -s))
+    a.lift(frame, -0.006 * a.h * (0.5 - 0.5 * math.cos(2 * t)))
+
+
 def rig_character(name, source, height):
     body, span = load(os.path.join(SRC, source), height)
     if span <= 0.8 * height:
@@ -258,6 +352,12 @@ def rig_character(name, source, height):
     a.clip("walk", 1.0, stride(swing=0.5, knee=0.85, arm=0.42, elbow=0.22, lean=0.03, bob=0.012, twist=0.07), 16)
     a.clip("run", 0.7, stride(swing=0.85, knee=1.6, arm=0.8, elbow=1.25, lean=0.2, bob=0.028, twist=0.12), 16)
     a.clip("sit", 1.0, sit, 1)
+    a.clip("jump", 1.0, jump, 10)
+    a.clip("swim", 1.6, swim, 16)
+    a.clip("tread", 2.0, tread, 16)
+    a.clip("fish", 3.0, fish, 18)
+    a.clip("badminton", 1.2, badminton, 24)
+    a.clip("sing", 2.0, sing, 16)
 
     bpy.ops.object.select_all(action="DESELECT")
     rig.select_set(True)
@@ -273,9 +373,10 @@ def rig_character(name, source, height):
 
 
 def preview(rig, body, path):
-    """The character in five poses, seen from front-left."""
+    """The character in a row of poses, seen from front-left."""
     scene = bpy.context.scene
-    shots = [("idle", 0), ("walk", 8), ("walk", 22), ("run", 5), ("sit", 0)]
+    shots = [("idle", 0), ("walk", 8), ("run", 5), ("sit", 0), ("jump", 0), ("jump", 15), ("jump", 30),
+             ("swim", 0), ("swim", 24), ("tread", 15), ("fish", 22), ("badminton", 12), ("badminton", 20), ("sing", 15)]
     actions = {t.name: t.strips[0].action for t in rig.animation_data.nla_tracks}
     for t in rig.animation_data.nla_tracks:
         t.mute = True
@@ -303,8 +404,8 @@ def preview(rig, body, path):
     scene.render.engine = "BLENDER_WORKBENCH"
     scene.display.shading.light = "FLAT"
     scene.display.shading.color_type = "TEXTURE"
-    scene.render.resolution_x = 1800
-    scene.render.resolution_y = 620
+    scene.render.resolution_x = 2400
+    scene.render.resolution_y = 520
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
 

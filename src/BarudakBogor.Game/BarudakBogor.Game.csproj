@@ -19,10 +19,8 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
     <PackageReference Include="System.IO.Hashing" Version="11.0.0" />
-    <!-- A build of the coming 0.12.2 with the ray marched CloudLayer, restored from packages-local (see nuget.config) until 0.12.2 is on nuget.org. -->
-    <PackageReference Include="ThreeNet" Version="0.12.2-clouds.1" />
-    <!-- The native core is unchanged (same ABI), and only the published 0.12.1 carries every platform. -->
-    <PackageReference Include="ThreeNet.Native" Version="0.12.1" NoWarn="NU1605" />
+    <PackageReference Include="ThreeNet" Version="0.12.2" />
+    <PackageReference Include="ThreeNet.Native" Version="0.12.2" />
   </ItemGroup>
 
   <ItemGroup>

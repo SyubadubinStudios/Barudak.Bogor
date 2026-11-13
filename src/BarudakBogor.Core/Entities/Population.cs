@@ -16,6 +16,16 @@ public enum NpcKind
     Bapak,
     Ibu,
     AnakSd,
+
+    /// <summary>Pedagang kaki lima: a hawker with a carrying pole.</summary>
+    Pkl,
+    Polisi,
+
+    /// <summary>A civil servant in khaki.</summary>
+    Pns,
+    Badut,
+    Pengamen,
+    AnakPunk,
 }
 
 public enum PedestrianState
@@ -64,8 +74,17 @@ public sealed class Pedestrian
         NpcKind.Ojol => "npc_ojol",
         NpcKind.Bapak => "npc_bapak",
         NpcKind.Ibu => "npc_ibu",
+        NpcKind.Pkl => "npc_pkl",
+        NpcKind.Polisi => "npc_polisi",
+        NpcKind.Pns => "npc_pns",
+        NpcKind.Badut => "npc_badut",
+        NpcKind.Pengamen => "npc_pengamen",
+        NpcKind.AnakPunk => "npc_anak_punk",
         _ => "npc_anak_sd",
     };
+
+    /// <summary>People who are on the street to be on the street: they stand about more than they walk.</summary>
+    public static bool Lingers(NpcKind kind) => kind is NpcKind.Polisi or NpcKind.Badut or NpcKind.Pengamen or NpcKind.AnakPunk;
 
     /// <summary>Picks a model for a kind; townsfolk have several faces so a crowd does not look cloned.</summary>
     public static string ModelOf(NpcKind kind, uint roll) => kind switch
@@ -89,6 +108,21 @@ public enum AnimalKind
     Kambing,
     Anjing,
     Ayam,
+
+    /// <summary>Town pigeons: they peck about in a flock and fly off when someone comes close.</summary>
+    Burung,
+
+    /// <summary>Carp just under the surface of ponds and rivers; they dart off when someone wades in.</summary>
+    Ikan,
+
+    /// <summary>Pond turtles paddling about with the shell out of the water.</summary>
+    KuraKura,
+
+    /// <summary>A lazy crocodile adrift in the river. It wants nothing to do with anybody and swims off.</summary>
+    Buaya,
+
+    /// <summary>Ducks on the water.</summary>
+    Bebek,
 }
 
 /// <summary>An animal wandering around its home range.</summary>
@@ -110,7 +144,15 @@ public sealed class Animal
 
     public bool Fleeing { get; internal set; }
 
+    /// <summary>True while a bird is on the wing; <see cref="Position"/> is then above the ground.</summary>
+    public bool Airborne { get; internal set; }
+
+    internal float Altitude;
+
     public static string ModelOf(AnimalKind kind) => kind.ToString().ToLowerInvariant();
+
+    /// <summary>True for the animals that live in the water and never leave it.</summary>
+    public static bool IsAquatic(AnimalKind kind) => kind is AnimalKind.Ikan or AnimalKind.KuraKura or AnimalKind.Buaya or AnimalKind.Bebek;
 }
 
 /// <summary>
@@ -141,6 +183,17 @@ public sealed class Population
         public float StopTimer;
         public float NextStop;
         public float Blocked;
+
+        /// <summary>Metres moved over towards the middle of the road, to go round <see cref="Passing"/>.</summary>
+        public float Pass;
+        public Vehicle? Passing;
+        public float PassTime;
+
+        /// <summary>Seconds spent standing still behind other traffic.</summary>
+        public float Waited;
+
+        /// <summary>Standing in line for a good reason (a red light, a train), or behind someone who is.</summary>
+        public bool Queued;
     }
 
     private readonly record struct AnimalZone(AnimalKind Kind, Vector2 Center, float Radius, int Count);
@@ -171,10 +224,23 @@ public sealed class Population
             new(AnimalKind.Kucing, map[PoiId.RumahUjang].Position, 120f, 2),
             new(AnimalKind.Monyet, map[PoiId.PuncakPass].Position, 240f, 5),
             new(AnimalKind.Monyet, map[PoiId.KebunTeh].Position, 200f, 3),
+            new(AnimalKind.Monyet, Vector2.Lerp(map[PoiId.GerbangKebunRaya].Position, park, 0.35f), 150f, 5),
+            new(AnimalKind.Ayam, map[PoiId.RumahUjang].Position, 70f, 4),
+            new(AnimalKind.Ayam, map[PoiId.Empang].Position, 90f, 4),
+            new(AnimalKind.Ayam, map[PoiId.GangSelot].Position, 100f, 3),
+            new(AnimalKind.Burung, map[PoiId.TuguKujang].Position, 55f, 8),
+            new(AnimalKind.Burung, map[PoiId.PasarAnyar].Position, 80f, 8),
+            new(AnimalKind.Burung, map[PoiId.MasjidRaya].Position, 55f, 6),
+            new(AnimalKind.Burung, map[PoiId.StasiunBogor].Position, 60f, 6),
+            new(AnimalKind.Burung, map[PoiId.GerbangKebunRaya].Position, 70f, 6),
+            new(AnimalKind.Burung, map[PoiId.BalaiKota].Position, 50f, 5),
+            new(AnimalKind.Burung, map[PoiId.AlunAlun].Position, 60f, 7),
+            new(AnimalKind.Burung, map[PoiId.LapanganSempur].Position, 70f, 6),
             new(AnimalKind.Kerbau, map[PoiId.SituGede].Position + new Vector2(260f, 240f), 240f, 3),
             new(AnimalKind.Sapi, map[PoiId.Ciawi].Position + new Vector2(200f, -160f), 260f, 3),
             new(AnimalKind.Kambing, map[PoiId.Empang].Position + new Vector2(-90f, 120f), 200f, 2),
             new(AnimalKind.Kambing, map[PoiId.VillaMisterius].Position, 90f, 2),
+            .. WaterZones(map),
         ];
         _zoneActive = new bool[_zones.Length];
     }
@@ -235,11 +301,23 @@ public sealed class Population
         NpcKind.Ibu => hours switch { >= 5f and < 11f => 1.4f, >= 11f and < 18f => 0.9f, >= 18f and < 21f => 0.5f, _ => 0.04f },
         NpcKind.Bapak => hours is >= 5f and < 22f ? 1f : 0.5f,
         NpcKind.Ojol => hours is >= 19f or < 5f ? 1.3f : 1f,
+        NpcKind.Pns => hours switch { >= 6.5f and < 8.5f => 1.5f, >= 8.5f and < 15.5f => 0.6f, >= 15.5f and < 17.5f => 1.5f, _ => 0f },
+        NpcKind.Polisi => hours is >= 6f and < 20f ? 1f : 0.25f,
+        NpcKind.Pkl => hours is >= 5f and < 20f ? 1f : 0.15f,
+        NpcKind.Badut => hours is >= 9f and < 18f ? 1f : 0f,
+        NpcKind.Pengamen => hours is >= 8f and < 23f ? 1f : 0.2f,
+        NpcKind.AnakPunk => hours switch { >= 15f or < 2f => 1.3f, >= 10f and < 15f => 0.5f, _ => 0.1f },
         _ => hours is >= 5f and < 22f ? 1f : 0.5f,
     };
 
     /// <summary>The commuter train: traffic waits at a level crossing while it passes.</summary>
     public Train? Train { get; set; }
+
+    /// <summary>The vehicles that are not traffic (parked, mission, the player's): traffic keeps clear of them too.</summary>
+    public IReadOnlyList<Vehicle>? Parked { get; set; }
+
+    /// <summary>The clock the traffic lights run on (see <see cref="TrafficSignal.ColourAt"/>).</summary>
+    public double SignalTime { get; private set; }
 
     /// <summary>Raised when a pedestrian leaps out of the player's way.</summary>
     public event Action<Pedestrian>? PedestrianDodged;
@@ -260,6 +338,7 @@ public sealed class Population
     public void Update(float dt, Player player, GameClock clock, WeatherSystem weather)
     {
         Vector2 focus = player.Ground;
+        SignalTime += dt;
         _spawnTimer -= dt;
         if (_spawnTimer <= 0f)
         {
@@ -379,6 +458,18 @@ public sealed class Population
                     : roll < 0.68f ? NpcKind.Mahasiswa : roll < 0.8f ? NpcKind.Ojol : roll < 0.92f ? NpcKind.Pedagang : NpcKind.AnakSd,
                 _ => roll < 0.26f ? NpcKind.Bapak : roll < 0.52f ? NpcKind.Ibu : roll < 0.7f ? NpcKind.Pedagang : roll < 0.82f ? NpcKind.AnakSd : roll < 0.92f ? NpcKind.Sopir : NpcKind.Ojol,
             };
+            // Street life on top of the residents: hawkers, buskers, the odd clown, the law.
+            float extra = _rng.NextFloat();
+            drawn = use switch
+            {
+                LandUse.Pasar => extra < 0.12f ? NpcKind.Pkl : extra < 0.16f ? NpcKind.Pengamen : extra < 0.19f ? NpcKind.Badut
+                    : extra < 0.21f ? NpcKind.Polisi : drawn,
+                LandUse.Kota or LandUse.Modern => extra < 0.06f ? NpcKind.Pns : extra < 0.1f ? NpcKind.Polisi : extra < 0.14f ? NpcKind.Pengamen
+                    : extra < 0.18f ? NpcKind.AnakPunk : extra < 0.21f ? NpcKind.Badut : extra < 0.26f ? NpcKind.Pkl : drawn,
+                LandUse.Kampus => extra < 0.05f ? NpcKind.Pengamen : extra < 0.1f ? NpcKind.Pkl : extra < 0.13f ? NpcKind.AnakPunk : drawn,
+                LandUse.Kampung or LandUse.Gang => extra < 0.07f ? NpcKind.Pkl : extra < 0.09f ? NpcKind.Pengamen : extra < 0.12f ? NpcKind.AnakPunk : drawn,
+                _ => drawn,
+            };
             if (schoolRun && _rng.Chance(0.45f))
             {
                 drawn = _rng.Chance(0.6f) ? NpcKind.AnakSd : NpcKind.AnakSekolah;
@@ -462,13 +553,117 @@ public sealed class Population
             }
         }
 
+        if (Parked is { } parked)
+        {
+            foreach (Vehicle idle in parked)
+            {
+                if (Vector2.DistanceSquared(idle.Ground, position) < 36f)
+                {
+                    return;
+                }
+            }
+        }
+
         vehicle.MoveKinematic(_map, position, yaw, agent.Speed, 0f);
         _agents.Add(agent);
         _traffic.Add(vehicle);
     }
 
+    /// <summary>
+    /// Where the water animals live: every pond has fish, turtles and ducks, and the two rivers
+    /// have fish, a few turtles and the odd crocodile at the stretches people actually visit.
+    /// </summary>
+    private static IEnumerable<AnimalZone> WaterZones(WorldMap map)
+    {
+        foreach (Pond pond in map.Ponds)
+        {
+            float reach = pond.Radius * 0.9f;
+            int size = pond.Radius > 100f ? 2 : 1;
+            yield return new AnimalZone(AnimalKind.Ikan, pond.Center, reach, 9 * size);
+            yield return new AnimalZone(AnimalKind.KuraKura, pond.Center, reach, 3 * size);
+            yield return new AnimalZone(AnimalKind.Bebek, pond.Center, reach, 4 * size);
+        }
+
+        int river = 0;
+        foreach (Corridor corridor in map.Terrain.Corridors)
+        {
+            if (corridor.Kind != CorridorKind.River)
+            {
+                continue;
+            }
+
+            // A home range every 400 m of river; which animal lives there goes round in turn.
+            int range = 0;
+            for (float along = 150f; along < corridor.Length - 150f; along += 400f, range++)
+            {
+                Vector2 centre = corridor.Sample(along, out _, out _);
+                yield return new AnimalZone(AnimalKind.Ikan, centre, 55f, 6);
+                AnimalKind other = ((range + river) % 4) switch
+                {
+                    0 => AnimalKind.Buaya,
+                    1 => AnimalKind.KuraKura,
+                    2 => AnimalKind.Bebek,
+                    _ => AnimalKind.Ikan,
+                };
+                yield return new AnimalZone(other, centre, 55f, other == AnimalKind.Buaya ? 1 : 3);
+            }
+
+            river++;
+        }
+    }
+
+    /// <summary>Water surface at <paramref name="p"/> when it is deep enough there for this animal, otherwise null.</summary>
+    private float? Swimmable(Vector2 p, AnimalKind kind)
+    {
+        if (_map.Terrain.WaterLevelAt(p) is not { } level)
+        {
+            return null;
+        }
+
+        float needed = kind switch
+        {
+            AnimalKind.Buaya => 0.6f,
+            AnimalKind.Ikan => 0.5f,
+            _ => 0.3f,
+        };
+        return level - _map.Terrain.GroundAt(p.X, p.Y) >= needed ? level : null;
+    }
+
+    /// <summary>How far below the surface the model's origin rides: fish under it, the others with their back out.</summary>
+    private static float Draught(AnimalKind kind) => kind switch
+    {
+        AnimalKind.Ikan => 0.17f,
+        AnimalKind.Buaya => 0.2f,
+        AnimalKind.KuraKura => 0.11f,
+        _ => 0.03f,
+    };
+
     private void SpawnAnimal(int zoneIndex, AnimalZone zone)
     {
+        if (Animal.IsAquatic(zone.Kind))
+        {
+            for (int attempt = 0; attempt < 40; attempt++)
+            {
+                Vector2 p = RandomInZone(zone);
+                if (Swimmable(p, zone.Kind) is { } level)
+                {
+                    _animals.Add(new Animal
+                    {
+                        Id = _nextId++,
+                        Kind = zone.Kind,
+                        Zone = zoneIndex,
+                        Position = p.ToWorld(level - Draught(zone.Kind)),
+                        Yaw = _rng.Range(0f, MathUtil.Tau),
+                        Target = p,
+                        Timer = _rng.Range(0f, 4f),
+                    });
+                    return;
+                }
+            }
+
+            return;
+        }
+
         for (int attempt = 0; attempt < 8; attempt++)
         {
             Vector2 p = RandomInZone(zone);
@@ -505,9 +700,9 @@ public sealed class Population
         AnimalKind kind = use switch
         {
             LandUse.Sawah => roll < 0.6f ? AnimalKind.Ayam : roll < 0.85f ? AnimalKind.Anjing : AnimalKind.Kambing,
-            LandUse.Pasar or LandUse.Gang => roll < 0.5f ? AnimalKind.Kucing : roll < 0.75f ? AnimalKind.Ayam : AnimalKind.Anjing,
-            LandUse.Kampung => roll < 0.4f ? AnimalKind.Ayam : roll < 0.7f ? AnimalKind.Kucing : AnimalKind.Anjing,
-            _ => roll < 0.55f ? AnimalKind.Kucing : AnimalKind.Anjing,
+            LandUse.Pasar or LandUse.Gang => roll < 0.35f ? AnimalKind.Kucing : roll < 0.6f ? AnimalKind.Ayam : roll < 0.8f ? AnimalKind.Burung : AnimalKind.Anjing,
+            LandUse.Kampung => roll < 0.4f ? AnimalKind.Ayam : roll < 0.65f ? AnimalKind.Kucing : roll < 0.8f ? AnimalKind.Burung : AnimalKind.Anjing,
+            _ => roll < 0.35f ? AnimalKind.Kucing : roll < 0.75f ? AnimalKind.Burung : AnimalKind.Anjing,
         };
         _strays++;
         _animals.Add(new Animal
@@ -531,13 +726,76 @@ public sealed class Population
 
     // ------------------------------------------------------------------ traffic
 
+    /// <summary>How far left of the centre line the agent drives. Keep left; an alley is one narrow lane each way.</summary>
+    private static float LaneOffset(TrafficAgent agent) =>
+        (agent.Edge.Kind == RoadKind.Gang ? 0.8f : agent.Edge.Width * 0.25f) - agent.Pass;
+
     private (Vector2 Position, float Yaw) LanePose(TrafficAgent agent)
     {
         Vector2 point = agent.Edge.Sample(agent.Distance, out Vector2 direction);
+        // Look a little ahead and behind for the heading, so the car turns through a bend
+        // instead of jerking at every point of the line.
+        Vector2 ahead = agent.Edge.Sample(agent.Distance + 5f, out _) - agent.Edge.Sample(agent.Distance - 5f, out _);
+        if (ahead.LengthSquared() > 1f)
+        {
+            direction = Vector2.Normalize(ahead);
+        }
+
         Vector2 travel = direction * agent.Direction;
-        // Keep left. Alleys have a single lane down the middle.
-        float lane = agent.Edge.Kind == RoadKind.Gang ? 0f : agent.Edge.Width * 0.25f;
-        return (point + (MathUtil.Left(travel) * lane), MathUtil.YawOf(travel));
+        return (point + (MathUtil.Left(travel) * LaneOffset(agent)), MathUtil.YawOf(travel));
+    }
+
+    /// <summary>Something a driver has to keep clear of: another car, a parked one, the player.</summary>
+    private struct Obstacle
+    {
+        public Vector2 Position;
+        public Vector2 Forward;
+        public float Speed;
+        public float HalfLength;
+        public float HalfWidth;
+        public int Id;
+        public TrafficAgent? Agent;
+        public Vehicle? Vehicle;
+    }
+
+    private readonly List<Obstacle> _obstacles = [];
+
+    private static Obstacle ObstacleOf(Vehicle vehicle, TrafficAgent? agent) => new()
+    {
+        Position = vehicle.Ground,
+        Forward = vehicle.Forward,
+        Speed = agent?.Speed ?? MathF.Abs(vehicle.Speed),
+        HalfLength = vehicle.Spec.Length * 0.5f,
+        HalfWidth = vehicle.Spec.Radius * 0.8f,
+        Id = vehicle.Id,
+        Agent = agent,
+        Vehicle = vehicle,
+    };
+
+    /// <summary>Half the room <paramref name="other"/> takes along and across a driver heading <paramref name="forward"/>.</summary>
+    private static (float Along, float Across) Extent(in Obstacle other, Vector2 forward)
+    {
+        float cos = MathF.Abs(Vector2.Dot(other.Forward, forward));
+        float sin = MathF.Sqrt(MathF.Max(0f, 1f - (cos * cos)));
+        return ((cos * other.HalfLength) + (sin * other.HalfWidth), (sin * other.HalfLength) + (cos * other.HalfWidth));
+    }
+
+    /// <summary>Would a body of the given size at <paramref name="position"/> be inside <paramref name="other"/>?</summary>
+    private static bool Touches(Vector2 position, Vector2 forward, float halfLength, float halfWidth, in Obstacle other)
+    {
+        // Two boxes overlap only if neither can see a gap along its own length or width.
+        Vector2 offset = other.Position - position;
+        (float along, float across) = Extent(other, forward);
+        if (MathF.Abs(Vector2.Dot(offset, forward)) >= halfLength + along + 0.1f
+            || MathF.Abs(Vector2.Dot(offset, MathUtil.Left(forward))) >= halfWidth + across)
+        {
+            return false;
+        }
+
+        float cos = MathF.Abs(Vector2.Dot(other.Forward, forward));
+        float sin = MathF.Sqrt(MathF.Max(0f, 1f - (cos * cos)));
+        return MathF.Abs(Vector2.Dot(offset, other.Forward)) < other.HalfLength + (cos * halfLength) + (sin * halfWidth) + 0.1f
+            && MathF.Abs(Vector2.Dot(offset, MathUtil.Left(other.Forward))) < other.HalfWidth + (sin * halfLength) + (cos * halfWidth);
     }
 
     private void UpdateTraffic(float dt, Player player, Vector2 focus)
@@ -546,36 +804,167 @@ public sealed class Population
         float playerRadius = playerVehicle?.Spec.Radius ?? Player.Radius;
         for (int i = _agents.Count - 1; i >= 0; i--)
         {
+            if (Vector2.DistanceSquared(_agents[i].Vehicle.Ground, focus) > DespawnDistance * DespawnDistance)
+            {
+                _traffic.Remove(_agents[i].Vehicle);
+                _agents.RemoveAt(i);
+            }
+        }
+
+        // Everything a driver must not drive into: the other traffic first (same order as the agents),
+        // then whatever stands about, then the player.
+        _obstacles.Clear();
+        foreach (TrafficAgent agent in _agents)
+        {
+            _obstacles.Add(ObstacleOf(agent.Vehicle, agent));
+        }
+
+        if (Parked is { } parked)
+        {
+            foreach (Vehicle idle in parked)
+            {
+                if (idle != playerVehicle && Vector2.DistanceSquared(idle.Ground, focus) < DespawnDistance * DespawnDistance)
+                {
+                    _obstacles.Add(ObstacleOf(idle, null));
+                }
+            }
+        }
+
+        _obstacles.Add(playerVehicle is not null
+            ? ObstacleOf(playerVehicle, null)
+            : new Obstacle { Position = focus, Forward = MathUtil.Forward(player.Yaw), HalfLength = Player.Radius, HalfWidth = Player.Radius, Id = -1 });
+
+        for (int i = _agents.Count - 1; i >= 0; i--)
+        {
             TrafficAgent agent = _agents[i];
             Vehicle vehicle = agent.Vehicle;
             Vector2 position = vehicle.Ground;
-            if (Vector2.DistanceSquared(position, focus) > DespawnDistance * DespawnDistance)
-            {
-                _agents.RemoveAt(i);
-                _traffic.Remove(vehicle);
-                continue;
-            }
-
             Vector2 forward = vehicle.Forward;
+            Vector2 left = MathUtil.Left(forward);
+            float halfLength = vehicle.Spec.Length * 0.5f;
+            float halfWidth = vehicle.Spec.Radius * 0.8f;
+            float braking = vehicle.Spec.Braking;
             float lookAhead = 7f + (agent.Speed * 0.9f);
-            bool blocked = IsAhead(position, forward, focus, lookAhead, 1.6f + playerRadius);
-            bool blockedByPlayer = blocked;
-            for (int k = 0; k < _agents.Count && !blocked; k++)
+            bool blockedByPlayer = IsAhead(position, forward, focus, lookAhead, 1.6f + playerRadius);
+
+            // What the driver wants (target) and what the car in front allows right now (cap).
+            float target = blockedByPlayer ? 0f : agent.Cruise;
+            float cap = float.MaxValue;
+            bool held = false;
+            int lowestBlocker = int.MaxValue;
+
+            // A red or yellow light: stop at the line, unless it is too late to do so decently.
+            bool queued = false;
+            int nodeAhead = agent.Direction > 0 ? agent.Edge.To : agent.Edge.From;
+            float remaining = agent.Direction > 0 ? agent.Edge.Length - agent.Distance : agent.Distance;
+            if (remaining > 11f && _map.SignalFor(nodeAhead, agent.Edge.Id) is { } signal && signal.ColourAt(SignalTime) != SignalColour.Green)
             {
-                if (k != i)
+                float room = remaining - 13f;
+                if (agent.Speed * agent.Speed <= (2f * braking * MathF.Max(room, 0f)) + 1f)
                 {
-                    blocked = IsAhead(position, forward, _agents[k].Vehicle.Ground, lookAhead, 2f);
+                    cap = MathF.Sqrt(braking * MathF.Max(0f, room));
+                    queued = room < 25f;
                 }
             }
 
-            if (!blocked && Train is { } train)
+            int slow = -1;
+            float slowGap = float.MaxValue;
+            float slowSide = 0f;
+            for (int k = 0; k < _obstacles.Count - 1; k++)
+            {
+                if (k == i)
+                {
+                    continue;
+                }
+
+                Obstacle other = _obstacles[k];
+                Vector2 offset = other.Position - position;
+                if (offset.LengthSquared() > 80f * 80f)
+                {
+                    continue;
+                }
+
+                float along = Vector2.Dot(offset, forward);
+                float side = Vector2.Dot(offset, left);
+                float facing = Vector2.Dot(forward, other.Forward);
+                (float otherAlong, float otherAcross) = Extent(other, forward);
+                float reach = halfLength + otherAlong;
+                float wide = halfWidth + otherAcross;
+                bool inPath;
+                float gap;
+                bool sameLane = false;
+                if (other.Agent is { } peer && peer.Edge == agent.Edge)
+                {
+                    // On the same stretch the road itself says who is in front, bends and all.
+                    float ahead = (peer.Distance - agent.Distance) * agent.Direction;
+                    float theirs = peer.Direction == agent.Direction ? LaneOffset(peer) : -LaneOffset(peer);
+                    inPath = ahead > 0f && MathF.Abs(LaneOffset(agent) - theirs) < wide + 0.3f;
+                    gap = ahead - reach;
+                    sameLane = peer.Direction == agent.Direction;
+                }
+                else
+                {
+                    inPath = along > 0.5f && along < lookAhead + reach && MathF.Abs(side) < wide + (facing < -0.3f ? 0f : 0.35f);
+                    gap = along - reach;
+                }
+
+                if (inPath)
+                {
+                    // Follow at the leader's pace with room to stop: v^2 = 2 a d, on half the brakes.
+                    float lead = gap > 0.5f ? MathF.Max(0f, other.Speed * facing) : 0f;
+                    float allowed = lead + MathF.Sqrt(braking * MathF.Max(0f, gap - 1.5f));
+                    cap = MathF.Min(cap, allowed);
+                    if (gap < 3f && allowed < 1f)
+                    {
+                        held = true;
+                        lowestBlocker = Math.Min(lowestBlocker, other.Id);
+                    }
+
+                    queued |= gap < 8f && other.Agent is { Queued: true };
+
+                    // Someone dawdling or standing in the lane: worth going round. Not a queue at the lights.
+                    bool dawdling = other.Agent is { } leader
+                        ? sameLane && leader.Pass == 0f && !leader.Queued && (leader.StopTimer > 0f || leader.Speed < agent.Cruise * 0.55f)
+                        : other.Speed < 0.5f;
+                    if (dawdling && gap < 14f && gap < slowGap && facing > 0.5f)
+                    {
+                        slow = k;
+                        slowGap = gap;
+                        slowSide = side;
+                    }
+                }
+                else if (along > 0f && other.Agent is not null && MathF.Abs(facing) < 0.8f)
+                {
+                    // Crossing paths at a junction: whoever would be hit in the side goes first,
+                    // and when both would, the older car does.
+                    Vector2 closing = (other.Forward * other.Speed) - (forward * agent.Speed);
+                    float closingSquared = closing.LengthSquared();
+                    if (closingSquared > 0.25f)
+                    {
+                        float time = Math.Clamp(-Vector2.Dot(offset, closing) / closingSquared, 0f, 2.5f);
+                        float miss = (offset + (closing * time)).Length();
+                        bool theySeeMe = Vector2.Dot(-offset, other.Forward) > 0f;
+                        if (time > 0f && miss < ((vehicle.Spec.Radius + other.Vehicle!.Spec.Radius) * 0.8f) + 0.3f
+                            && (!theySeeMe || vehicle.Id > other.Id))
+                        {
+                            target = 0f;
+                            held = true;
+                            lowestBlocker = Math.Min(lowestBlocker, other.Id);
+                        }
+                    }
+                }
+            }
+
+            bool atCrossing = false;
+            if (Train is { } train)
             {
                 foreach (LevelCrossing crossing in _map.Crossings)
                 {
                     if (train.Closes(crossing) && IsAhead(position, forward, crossing.Point, MathF.Max(lookAhead, 16f) + 6f, 5f)
                         && Vector2.Distance(position, crossing.Point) > 7f)
                     {
-                        blocked = true;
+                        target = 0f;
+                        atCrossing = true;
                         break;
                     }
                 }
@@ -586,16 +975,31 @@ public sealed class Population
             if (agent.NextStop <= 0f)
             {
                 agent.NextStop = _rng.Range(35f, 90f);
-                if (vehicle.Spec.Kind == VehicleKind.Angkot && agent.Edge.Kind != RoadKind.Toll)
+                if (vehicle.Spec.Kind == VehicleKind.Angkot && agent.Edge.Kind != RoadKind.Toll && agent.Pass == 0f)
                 {
                     agent.StopTimer = _rng.Range(4f, 9f);
                 }
             }
 
             agent.StopTimer = MathF.Max(0f, agent.StopTimer - dt);
-            float target = blocked || agent.StopTimer > 0f ? 0f : agent.Cruise;
-            float rate = target < agent.Speed ? vehicle.Spec.Braking : vehicle.Spec.Acceleration * 0.6f;
+            if (agent.StopTimer > 0f)
+            {
+                target = 0f;
+            }
+
+            agent.Queued = queued || atCrossing;
+
+            // Two drivers each waiting for the other: after a moment the older car edges forward.
+            // It still cannot touch anyone (see below), it only stops being polite.
+            if (held && agent.Waited > 3f && vehicle.Id < lowestBlocker && !blockedByPlayer && !agent.Queued && agent.StopTimer <= 0f)
+            {
+                target = 1.5f;
+                cap = MathF.Max(cap, 1.5f);
+            }
+
+            float rate = target < agent.Speed ? braking : vehicle.Spec.Acceleration * 0.6f;
             agent.Speed += Math.Clamp(target - agent.Speed, -rate * dt, rate * dt);
+            agent.Speed = MathF.Min(agent.Speed, cap);
 
             vehicle.Horn = false;
             if (blockedByPlayer && agent.Speed < 0.5f)
@@ -613,18 +1017,143 @@ public sealed class Population
                 agent.Blocked = 0f;
             }
 
+            // Remember where the car was, so the step can be taken back if it would touch someone.
+            (RoadEdge edge, float distance, int direction, float cruise, float pass, Vehicle? passing) =
+                (agent.Edge, agent.Distance, agent.Direction, agent.Cruise, agent.Pass, agent.Passing);
+
+            UpdatePassing(agent, i, agent.Queued ? -1 : slow, slowSide, halfWidth, position, forward, halfLength, dt);
+
             agent.Distance += agent.Speed * agent.Direction * dt;
             if (agent.Distance > agent.Edge.Length || agent.Distance < 0f)
             {
                 NextEdge(agent);
+                agent.Pass = 0f;
+                agent.Passing = null;
             }
 
             (Vector2 lanePosition, float laneYaw) = LanePose(agent);
-            // Ease onto the new lane after a junction instead of snapping.
-            Vector2 eased = Vector2.Lerp(position, lanePosition, MathUtil.Damp(6f, dt));
+            // Ease onto the new lane after a junction instead of snapping, but only sideways:
+            // easing the whole position leaves a fast car metres behind its place on the lane, and
+            // on a bend "behind" is off the road.
+            Vector2 heading = MathUtil.Forward(laneYaw);
+            Vector2 error = position - lanePosition;
+            error -= heading * Vector2.Dot(error, heading);
+            Vector2 eased = lanePosition + (error * (1f - MathUtil.Damp(4f, dt)));
             float yaw = MathUtil.TurnToward(vehicle.Yaw, laneYaw, 2.6f * dt);
-            vehicle.MoveKinematic(_map, eased, yaw, agent.Speed, dt);
+
+            // The one rule that is never bent: no step that puts this car inside another body,
+            // unless it is already inside and the step takes it out.
+            bool stopped = false;
+            Vector2 yawForward = MathUtil.Forward(yaw);
+            for (int k = 0; k < _obstacles.Count && !stopped; k++)
+            {
+                if (k == i)
+                {
+                    continue;
+                }
+
+                Obstacle other = _obstacles[k];
+                stopped = Touches(eased, yawForward, halfLength, halfWidth, other)
+                    && Vector2.DistanceSquared(eased, other.Position) < Vector2.DistanceSquared(position, other.Position) - 1e-5f;
+            }
+
+            if (stopped)
+            {
+                (agent.Edge, agent.Distance, agent.Direction, agent.Cruise, agent.Pass, agent.Passing) = (edge, distance, direction, cruise, pass, passing);
+                agent.Speed = 0f;
+                held = true;
+                vehicle.MoveKinematic(_map, position, vehicle.Yaw, 0f, dt);
+            }
+            else
+            {
+                vehicle.MoveKinematic(_map, eased, yaw, agent.Speed, dt);
+            }
+
+            agent.Waited = held && agent.Speed < 0.3f && !blockedByPlayer && !agent.Queued && agent.StopTimer <= 0f ? agent.Waited + dt : 0f;
+            _obstacles[i] = ObstacleOf(vehicle, agent);
+
+            // A jam nobody can get out of (two becaks nose to nose in an alley) is cleared away
+            // where the player is not looking, and at last even where they are.
+            if (agent.Waited > 10f)
+            {
+                float away = Vector2.Distance(vehicle.Ground, focus);
+                if (away > 45f || agent.Waited > 30f)
+                {
+                    _traffic.Remove(vehicle);
+                    _agents.RemoveAt(i);
+                    _obstacles.RemoveAt(i);
+                }
+            }
         }
+    }
+
+    /// <summary>Starts, keeps up and ends going round a vehicle that stands or dawdles in the lane.</summary>
+    private void UpdatePassing(
+        TrafficAgent agent, int index, int slow, float slowSide, float halfWidth, Vector2 position, Vector2 forward, float halfLength, float dt)
+    {
+        if (agent.Pass > 0f)
+        {
+            agent.PassTime += dt;
+            bool done = agent.Passing is null;
+            if (agent.Passing is { } passed)
+            {
+                Vector2 offset = passed.Ground - position;
+                float behind = -Vector2.Dot(offset, forward);
+                done = behind > halfLength + (passed.Spec.Length * 0.5f) + 1.5f || offset.LengthSquared() > 40f * 40f
+                    || (!_traffic.Contains(passed) && passed.IsTraffic);
+            }
+
+            if (done)
+            {
+                agent.Pass = 0f;
+                agent.Passing = null;
+            }
+
+            return;
+        }
+
+        if (slow < 0 || agent.Edge.Kind == RoadKind.Gang || agent.StopTimer > 0f)
+        {
+            return;
+        }
+
+        Obstacle blocker = _obstacles[slow];
+        bool standing = blocker.Speed < 0.5f;
+        float remaining = agent.Direction > 0 ? agent.Edge.Length - agent.Distance : agent.Distance;
+        float needed = standing ? 30f : 70f;
+        if (remaining < needed)
+        {
+            return;
+        }
+
+        // Far enough over to clear it, and still on the road.
+        float amount = MathF.Max(0.5f, halfWidth + blocker.HalfWidth + 0.9f - slowSide);
+        float room = (agent.Edge.Width * 0.25f) + (agent.Edge.Width * 0.5f) - halfWidth - 0.2f;
+        if (amount > room)
+        {
+            return;
+        }
+
+        // Nobody coming the other way, nobody else already out there.
+        for (int k = 0; k < _agents.Count; k++)
+        {
+            TrafficAgent other = _agents[k];
+            if (k == index || other.Edge != agent.Edge)
+            {
+                continue;
+            }
+
+            float ahead = (other.Distance - agent.Distance) * agent.Direction;
+            if ((other.Direction != agent.Direction && ahead > -6f && ahead < needed + 20f)
+                || (other.Pass > 0f && MathF.Abs(ahead) < 30f))
+            {
+                return;
+            }
+        }
+
+        agent.Pass = amount;
+        agent.Passing = blocker.Vehicle;
+        agent.PassTime = 0f;
     }
 
     private static bool IsAhead(Vector2 position, Vector2 forward, Vector2 other, float range, float halfWidth)
@@ -747,7 +1276,7 @@ public sealed class Population
                     if (p.Timer <= 0f)
                     {
                         p.State = PedestrianState.Walk;
-                        p.Timer = _rng.Range(12f, 40f);
+                        p.Timer = Pedestrian.Lingers(p.Kind) ? _rng.Range(5f, 12f) : _rng.Range(12f, 40f);
                     }
 
                     break;
@@ -772,10 +1301,95 @@ public sealed class Population
                     if (p.Timer <= 0f)
                     {
                         p.State = PedestrianState.Idle;
-                        p.Timer = _rng.Range(2f, 7f);
+                        p.Timer = Pedestrian.Lingers(p.Kind) ? _rng.Range(12f, 30f) : _rng.Range(2f, 7f);
                     }
 
                     break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A pigeon: pecks about on the ground in little hops, and takes to the air when someone
+    /// comes close, a car passes, or just because. It comes down somewhere else on its patch.
+    /// </summary>
+    private void UpdateBird(Animal bird, AnimalZone zone, Vector2 position, float toPlayer, Vector2 focus, bool playerFast, float dt)
+    {
+        if (bird.Airborne)
+        {
+            Vector2 toGoal = bird.Target - position;
+            float left = toGoal.Length();
+            bird.Speed += (8.5f - bird.Speed) * MathUtil.Damp(3f, dt);
+            Vector2 next = position;
+            if (left > 0.01f)
+            {
+                bird.Yaw = MathUtil.TurnToward(bird.Yaw, MathUtil.YawOf(toGoal), 6f * dt);
+                next = position + (toGoal / left * MathF.Min(left, bird.Speed * dt));
+            }
+
+            // Climb out, cruise above the roofs of the kampung, glide down over the last stretch.
+            float wanted = MathF.Min(7f + (bird.Id % 5), left * 0.9f);
+            bird.Altitude += Math.Clamp(wanted - bird.Altitude, -5f * dt, 4f * dt);
+            if (left < 0.3f && bird.Altitude < 0.3f)
+            {
+                bird.Airborne = false;
+                bird.Fleeing = false;
+                bird.Altitude = 0f;
+                bird.Speed = 0f;
+                bird.Timer = _rng.Range(2f, 6f);
+            }
+
+            bird.Position = next.ToWorld(_map.Terrain.HeightAt(next) + bird.Altitude);
+            return;
+        }
+
+        bool startled = toPlayer < (playerFast ? 11f : 5.5f);
+        for (int i = 0; i < _traffic.Count && !startled; i++)
+        {
+            startled = MathF.Abs(_traffic[i].Speed) > 1f && Vector2.DistanceSquared(_traffic[i].Ground, position) < 20f;
+        }
+
+        bird.Timer -= dt;
+        if (startled || (bird.Timer <= 0f && _rng.Chance(0.12f)))
+        {
+            Vector2 away = toPlayer > 0.01f ? (position - focus) / toPlayer : Vector2.UnitX;
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                Vector2 goal = bird.Zone >= 0
+                    ? RandomInZone(zone)
+                    : position + (MathUtil.Forward(MathUtil.YawOf(away) + _rng.Range(-0.9f, 0.9f)) * _rng.Range(14f, 26f));
+                if (Vector2.Distance(goal, position) > 8f && (!startled || Vector2.Distance(goal, focus) > 12f)
+                    && !_map.IsInsideBuilding(goal, 0.6f) && !_map.Roads.IsOnRoad(goal, 0.5f) && _map.Terrain.WaterLevelAt(goal) is null)
+                {
+                    bird.Target = goal;
+                    bird.Airborne = true;
+                    bird.Fleeing = startled;
+                    return;
+                }
+            }
+
+            bird.Timer = 1f;
+        }
+        else if (bird.Timer <= 0f)
+        {
+            bird.Timer = _rng.Range(1.5f, 5f);
+            bird.Target = position + new Vector2(_rng.Range(-1.5f, 1.5f), _rng.Range(-1.5f, 1.5f));
+        }
+
+        Vector2 hop = bird.Target - position;
+        float reach = hop.Length();
+        bird.Speed += ((reach > 0.25f ? 0.7f : 0f) - bird.Speed) * MathUtil.Damp(6f, dt);
+        if (reach > 0.25f)
+        {
+            bird.Yaw = MathUtil.TurnToward(bird.Yaw, MathUtil.YawOf(hop), 6f * dt);
+            Vector2 next = position + (MathUtil.Forward(bird.Yaw) * bird.Speed * dt);
+            if (!_map.IsInsideBuilding(next, 0.2f) && _map.Terrain.WaterLevelAt(next) is null)
+            {
+                bird.Position = next.ToWorld(_map.Terrain.HeightAt(next));
+            }
+            else
+            {
+                bird.Target = position;
             }
         }
     }
@@ -842,6 +1456,81 @@ public sealed class Population
 
     // ------------------------------------------------------------------ animals
 
+    /// <summary>
+    /// A water animal: cruises from one spot of its water to another, rests in between, and
+    /// swims away from anyone who comes close. It never leaves water deep enough for it.
+    /// </summary>
+    private void UpdateSwimmer(Animal animal, AnimalZone zone, Vector2 position, float toPlayer, Vector2 focus, bool playerFast, float dt)
+    {
+        (float cruise, float dash, float shy, float rest) = animal.Kind switch
+        {
+            AnimalKind.Ikan => (0.55f, 2.6f, 4f, 0.15f),
+            AnimalKind.KuraKura => (0.22f, 0.7f, 3f, 0.5f),
+            AnimalKind.Buaya => (0.25f, 1.3f, 8f, 0.75f),
+            _ => (0.5f, 1.9f, 5f, 0.35f),
+        };
+
+        animal.Fleeing = toPlayer < shy * (playerFast ? 1.6f : 1f);
+        animal.Timer -= dt;
+        if (animal.Fleeing)
+        {
+            Vector2 away = toPlayer > 0.01f ? (position - focus) / toPlayer : Vector2.UnitX;
+            // Straight away if there is water that way, otherwise along the bank.
+            foreach (float turn in (ReadOnlySpan<float>)[0f, 0.7f, -0.7f, 1.4f, -1.4f])
+            {
+                Vector2 goal = position + (MathUtil.Forward(MathUtil.YawOf(away) + turn) * 6f);
+                if (Swimmable(goal, animal.Kind) is not null)
+                {
+                    animal.Target = goal;
+                    break;
+                }
+            }
+
+            animal.Timer = 1.5f;
+        }
+        else if (animal.Timer <= 0f)
+        {
+            animal.Timer = _rng.Range(3f, 9f);
+            animal.Target = position;
+            if (!_rng.Chance(rest))
+            {
+                for (int attempt = 0; attempt < 8; attempt++)
+                {
+                    Vector2 goal = Vector2.Distance(position, zone.Center) > zone.Radius
+                        ? zone.Center + new Vector2(_rng.Range(-6f, 6f), _rng.Range(-6f, 6f))
+                        : position + new Vector2(_rng.Range(-14f, 14f), _rng.Range(-14f, 14f));
+                    if (Swimmable(goal, animal.Kind) is not null)
+                    {
+                        animal.Target = goal;
+                        break;
+                    }
+                }
+            }
+        }
+
+        Vector2 toTarget = animal.Target - position;
+        float distance = toTarget.Length();
+        float speed = distance < 0.4f ? 0f : animal.Fleeing ? dash : cruise;
+        animal.Speed += (speed - animal.Speed) * MathUtil.Damp(4f, dt);
+        if (distance < 0.4f)
+        {
+            return;
+        }
+
+        animal.Yaw = MathUtil.TurnToward(animal.Yaw, MathUtil.YawOf(toTarget), (animal.Kind == AnimalKind.Ikan ? 5f : 2.2f) * dt);
+        Vector2 next = position + (MathUtil.Forward(animal.Yaw) * animal.Speed * dt);
+        if (Swimmable(next, animal.Kind) is { } level)
+        {
+            animal.Position = next.ToWorld(level - Draught(animal.Kind));
+        }
+        else
+        {
+            // The bank: stop here and think of somewhere else.
+            animal.Target = position;
+            animal.Timer = MathF.Min(animal.Timer, 0.6f);
+        }
+    }
+
     private void UpdateAnimals(float dt, Player player, Vector2 focus)
     {
         bool playerFast = player.Speed > 3f;
@@ -860,6 +1549,18 @@ public sealed class Population
             Vector2 position = new(animal.Position.X, animal.Position.Z);
             AnimalZone zone = animal.Zone >= 0 ? _zones[animal.Zone] : new AnimalZone(animal.Kind, position, 14f, 1);
             float toPlayer = Vector2.Distance(position, focus);
+            if (animal.Kind == AnimalKind.Burung)
+            {
+                UpdateBird(animal, zone, position, toPlayer, focus, playerFast, dt);
+                continue;
+            }
+
+            if (Animal.IsAquatic(animal.Kind))
+            {
+                UpdateSwimmer(animal, zone, position, toPlayer, focus, playerFast, dt);
+                continue;
+            }
+
             (float walk, float run, float shy) = animal.Kind switch
             {
                 AnimalKind.Rusa => (1.1f, 7f, 7f),

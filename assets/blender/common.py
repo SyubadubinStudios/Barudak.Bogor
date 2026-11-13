@@ -70,6 +70,8 @@ PALETTE = {
     "door_wood": ("#4a2f1c", 0.8, 0, 0), "billboard_face": ("#f2f2f2", 0.6, 0, 0),
     "sign_blue": ("#1d5fb8", 0.5, 0, 0), "bag_olive": ("#4b5234", 0.9, 0, 0),
     "bag_strap": ("#23261c", 0.9, 0, 0), "stone": ("#8d8d86", 0.95, 0, 0),
+    "roof_grey": ("#6c7178", 0.8, 0.1, 0), "dome_green": ("#2b7f6a", 0.45, 0.2, 0),
+    "roof_green": ("#2f7f4a", 0.6, 0.1, 0),
     # characters
     "skin": ("#c68e62", 0.8, 0, 0), "skin_light": ("#dcaa80", 0.8, 0, 0),
     "skin_dark": ("#a8744a", 0.8, 0, 0), "hair": ("#18140f", 0.8, 0, 0),
@@ -99,6 +101,19 @@ PALETTE = {
     "dog_tan": ("#c79a5e", 0.9, 0, 0), "chicken_brown": ("#a8622a", 0.9, 0, 0),
     "chicken_orange": ("#dd8f2e", 0.9, 0, 0), "chicken_green": ("#1c4a38", 0.6, 0, 0),
     "chicken_leg": ("#d6a436", 0.7, 0, 0),
+    "bird_grey": ("#8f9aa8", 0.85, 0, 0), "bird_dark": ("#4b5663", 0.85, 0, 0),
+    "bird_neck": ("#3f7a6a", 0.5, 0.2, 0),
+    # street life
+    "hivis": ("#c9e62e", 0.7, 0, 0), "police_brown": ("#7a6650", 0.85, 0, 0),
+    "police_dark": ("#3b342e", 0.85, 0, 0), "punk_pink": ("#e8388a", 0.7, 0, 0),
+    "clown_white": ("#f3efe8", 0.8, 0, 0),
+    # water life
+    "turtle_shell": ("#4c5a2c", 0.7, 0, 0), "turtle_skin": ("#77863f", 0.8, 0, 0),
+    "turtle_belly": ("#c9b96a", 0.8, 0, 0), "croc": ("#55623a", 0.75, 0, 0),
+    "croc_dark": ("#39442a", 0.8, 0, 0), "croc_belly": ("#b9b488", 0.8, 0, 0),
+    "lotus_pink": ("#f09cc0", 0.7, 0, 0), "hyacinth": ("#a88be6", 0.7, 0, 0),
+    "reed": ("#8ea047", 0.9, 0, 0), "reed_head": ("#6a4526", 0.95, 0, 0),
+    "pond_dark": ("#1c4a2a", 0.9, 0, 0),
 }
 
 AX = {"z": Matrix.Identity(4),

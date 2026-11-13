@@ -10,7 +10,8 @@ public readonly record struct ModelPrimitive(Geometry Geometry, Material Materia
 /// A character with a skeleton: one skinned mesh and the clips that move it. Clips are null
 /// when the file lacks them.
 /// </summary>
-public sealed record RiggedModel(Node Root, AnimationClip? Idle, AnimationClip? Walk, AnimationClip? Run, AnimationClip? Sit);
+/// <param name="Clips">Every clip of the model by name (idle, walk, run, sit, jump, swim, tread, fish, badminton, sing).</param>
+public sealed record RiggedModel(Node Root, AnimationClip? Idle, AnimationClip? Walk, AnimationClip? Run, AnimationClip? Sit, IReadOnlyDictionary<string, AnimationClip> Clips);
 
 /// <summary>
 /// Loads each GLB once into a hidden prototype. Moving things (vehicles, people, animals) get a
@@ -104,7 +105,7 @@ public sealed class ModelLibrary
                 clips[clip.Name] = clip;
             }
 
-            return new RiggedModel(root, clips.GetValueOrDefault("idle"), clips.GetValueOrDefault("walk"), clips.GetValueOrDefault("run"), clips.GetValueOrDefault("sit"));
+            return new RiggedModel(root, clips.GetValueOrDefault("idle"), clips.GetValueOrDefault("walk"), clips.GetValueOrDefault("run"), clips.GetValueOrDefault("sit"), clips);
         }
         catch (ThreeNetException)
         {

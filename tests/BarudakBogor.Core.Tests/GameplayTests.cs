@@ -285,6 +285,263 @@ public sealed class GameplayTests(WorldFixture fixture)
         Assert.Contains(session.Population.Animals, a => a.Kind is AnimalKind.Kucing or AnimalKind.Anjing or AnimalKind.Ayam);
     }
 
+    /// <summary>
+    /// Traffic queues, goes round or waits; it never drives through another vehicle. Checked on a
+    /// crowded market street, at the big roundabout and on the toll road, where it is fastest.
+    /// </summary>
+    [Fact]
+    public void TrafficNeverDrivesThroughItself()
+    {
+        Vector2 toll = _map.Roads.Edges.First(e => e.Kind == RoadKind.Toll && e.Length > 200f).Sample(100f, out Vector2 along);
+        Vector2[] places = [_map[PoiId.PasarAnyar].RoadPoint, _map[PoiId.TuguKujang].RoadPoint, toll + (MathUtil.Left(along) * 14f)];
+        int seen = 0;
+        float moved = 0f;
+        foreach (Vector2 place in places)
+        {
+            GameSession session = NewSession();
+            session.Clock.Set(1, 10f);
+            session.Player.Teleport(_map, place, 0f);
+            for (float t = 0f; t < 90f; t += Step)
+            {
+                session.Update(Step, default);
+                IReadOnlyList<Vehicle> cars = session.Population.Traffic;
+                for (int a = 0; a < cars.Count; a++)
+                {
+                    moved += MathF.Abs(cars[a].Speed) * Step;
+                    for (int b = a + 1; b < cars.Count; b++)
+                    {
+                        // Two boxes overlap only if neither sees a gap along its own length or width.
+                        Assert.False(
+                            Covers(cars[a], cars[b]) && Covers(cars[b], cars[a]),
+                            $"{cars[a].Spec.Kind} is inside {cars[b].Spec.Kind} at {cars[a].Ground} after {t:0.0} s");
+                    }
+                }
+
+                seen = Math.Max(seen, cars.Count);
+            }
+        }
+
+        Assert.True(seen >= 5, $"only {seen} cars at once");
+        Assert.True(moved > 3_000f, $"traffic only covered {moved:0} m: it is standing still");
+    }
+
+    [Fact]
+    public void JunctionsHaveLightsThatTakeTurns()
+    {
+        int junctions = _map.Signals.Select(s => s.Node).Distinct().Count();
+        Assert.True(junctions is >= 6 and <= 60, $"{junctions} junctions with traffic lights");
+        foreach (IGrouping<int, TrafficSignal> junction in _map.Signals.GroupBy(s => s.Node))
+        {
+            HashSet<int> served = [];
+            for (double time = 0; time < 120; time += 0.5)
+            {
+                TrafficSignal[] green = [.. junction.Where(s => s.ColourAt(time) == SignalColour.Green)];
+                Assert.True(green.Length <= 1, $"{green.Length} arms of junction {junction.Key} are green at once");
+                Assert.True(junction.Count(s => s.ColourAt(time) != SignalColour.Red) <= 1);
+                served.UnionWith(green.Select(s => s.Edge));
+            }
+
+            Assert.Equal(junction.Count(), served.Count);
+        }
+
+        // The street furniture stands beside the road, never on it.
+        foreach (string model in (ReadOnlySpan<string>)["lampu_merah", "cctv", "spanduk", "light_box", "videotron"])
+        {
+            Prop[] placed = [.. _map.Props.Where(p => p.Model == model)];
+            Assert.True(placed.Length >= 3, $"only {placed.Length} of {model}");
+            Assert.All(placed, p => Assert.False(_map.Roads.IsOnRoad(p.Position), $"{model} on the road at {p.Position}"));
+        }
+
+        Assert.Contains(_map.Signs, s => s.Look == SignLook.Banner);
+        Assert.Contains(_map.Signs, s => s.Look == SignLook.LightBox);
+    }
+
+    [Fact]
+    public void TrafficStopsAtARedLight()
+    {
+        Vector2 centre = _map[PoiId.TuguKujang].Position;
+        TrafficSignal[] lights = [.. _map.Signals.OrderBy(s => Vector2.Distance(s.Position, centre)).Take(1)
+            .SelectMany(nearest => _map.Signals.Where(s => s.Node == nearest.Node))];
+        Vector2 junction = _map.Roads.Nodes[lights[0].Node].Position;
+        GameSession session = NewSession();
+        session.Clock.Set(1, 10f);
+        // Stand well off the road: the player must not be what holds the cars up.
+        session.Player.Teleport(_map, _map.ResolveCircle(junction + new Vector2(24f, 24f), 0.5f, out _), 0f);
+        int waited = 0;
+        int passed = 0;
+        Dictionary<(int Edge, int Car), float> lastAlong = [];
+        for (float t = 0f; t < 240f; t += Step)
+        {
+            session.Update(Step, default);
+            foreach (TrafficSignal light in lights)
+            {
+                // The line is where the post stands; the post faces the drivers it speaks to.
+                Vector2 travel = -MathUtil.Forward(light.Yaw);
+                double now = session.Population.SignalTime;
+                SignalColour colour = light.ColourAt(now);
+                // Rolling over the line as it changes is how everyone drives; going through a light
+                // that has been red for seconds is not.
+                bool longRed = colour == SignalColour.Red && light.ColourAt(now - 1.5) == SignalColour.Red && light.ColourAt(now - 3) == SignalColour.Red;
+                foreach (Vehicle car in session.Population.Traffic)
+                {
+                    Vector2 offset = car.Ground - light.Position;
+                    float along = Vector2.Dot(offset, travel);
+                    float across = -Vector2.Dot(offset, MathUtil.Left(travel));
+                    if (Vector2.Dot(car.Forward, travel) < 0.8f || across < 0f || across > 6f)
+                    {
+                        continue;
+                    }
+
+                    if (colour == SignalColour.Red && along is > -12f and < 0f && MathF.Abs(car.Speed) < 0.2f)
+                    {
+                        waited++;
+                    }
+
+                    // Crossing the line, which is where the post stands. A car caught beyond it when
+                    // the light changed (the junction was full) may clear off; nobody may drive over it.
+                    bool before = lastAlong.TryGetValue((light.Edge, car.Id), out float last) && last < 0f;
+                    lastAlong[(light.Edge, car.Id)] = along;
+                    if (before && along >= 0f)
+                    {
+                        passed++;
+                        Assert.False(longRed, $"a {car.Spec.Kind} ran the red light at {car.Ground} after {t:0.0} s (speed {car.Speed:0.0})");
+                    }
+                }
+            }
+        }
+
+        Assert.True(waited > 30, $"nobody waited at the lights ({waited} frames)");
+        Assert.True(passed >= 5, $"only {passed} cars got through the lights");
+    }
+
+    [Fact]
+    public void PigeonsFlyOffAndComeDownAgain()
+    {
+        GameSession session = NewSession();
+        session.Clock.Set(1, 10f);
+        Vector2 square = _map[PoiId.TuguKujang].Position;
+        session.Player.Teleport(_map, _map.ResolveCircle(square + new Vector2(70f, 0f), 0.5f, out _), 0f);
+        Run(session, 2f);
+        Animal[] flock = [.. session.Population.Animals.Where(a => a.Kind == AnimalKind.Burung)];
+        Assert.True(flock.Length >= 5, $"only {flock.Length} pigeons");
+
+        // Walk straight into one of them.
+        Animal bird = flock.First(b => !b.Airborne);
+        session.Player.Teleport(_map, bird.Position.Xz() + new Vector2(2f, 0f), 0f);
+        float highest = 0f;
+        bool landed = false;
+        for (float t = 0f; t < 40f && !landed; t += Step)
+        {
+            session.Update(Step, default);
+            float above = bird.Position.Y - _map.Terrain.HeightAt(bird.Position.Xz());
+            highest = MathF.Max(highest, above);
+            landed = highest > 2f && !bird.Airborne;
+            Assert.True(above > -0.01f, "a pigeon went underground");
+        }
+
+        Assert.True(highest > 2f, $"the pigeon only got {highest:0.0} m up");
+        Assert.True(landed, "the pigeon never came down");
+        Assert.True(Vector2.Distance(bird.Position.Xz(), session.Player.Ground) > 6f);
+    }
+
+    [Fact]
+    public void StreetLifeTurnsUp()
+    {
+        HashSet<NpcKind> seen = [];
+        HashSet<AnimalKind> animals = [];
+        foreach ((PoiId place, float hour) in (ReadOnlySpan<(PoiId, float)>)[(PoiId.PasarAnyar, 10f), (PoiId.TuguKujang, 16.5f),
+            (PoiId.BalaiKota, 7.5f), (PoiId.SuryaKencana, 19f), (PoiId.GerbangKebunRaya, 11f)])
+        {
+            GameSession session = NewSession();
+            session.Clock.Set(1, hour);
+            session.Weather.Locked = true;
+            session.Weather.Set(WeatherKind.Cerah);
+            session.Player.Teleport(_map, _map[place].RoadPoint, 0f);
+            Run(session, 25f);
+            seen.UnionWith(session.Population.Pedestrians.Select(p => p.Kind));
+            animals.UnionWith(session.Population.Animals.Select(a => a.Kind));
+        }
+
+        NpcKind[] street = [NpcKind.Pkl, NpcKind.Polisi, NpcKind.Pns, NpcKind.Badut, NpcKind.Pengamen, NpcKind.AnakPunk];
+        Assert.True(street.All(seen.Contains), $"missing {string.Join(", ", street.Except(seen))}");
+        AnimalKind[] wanted = [AnimalKind.Burung, AnimalKind.Monyet, AnimalKind.Ayam];
+        Assert.True(wanted.All(animals.Contains), $"missing {string.Join(", ", wanted.Except(animals))}");
+    }
+
+    [Fact]
+    public void WaterAnimalsLiveInTheWaterAndStayThere()
+    {
+        // The fishing pond, and the first stretch of the Ciliwung that has a crocodile.
+        Corridor river = _map.Terrain.Corridors.First(c => c.Kind == CorridorKind.River);
+        HashSet<AnimalKind> seen = [];
+        foreach (Vector2 place in (ReadOnlySpan<Vector2>)[_map[PoiId.Empang].Position, river.Sample(150f, out _, out _) + new Vector2(30f, 0f)])
+        {
+            GameSession session = NewSession();
+            session.Player.Teleport(_map, place, 0f);
+            for (float t = 0f; t < 40f; t += Step)
+            {
+                session.Update(Step, default);
+                foreach (Animal animal in session.Population.Animals.Where(a => Animal.IsAquatic(a.Kind)))
+                {
+                    seen.Add(animal.Kind);
+                    Vector2 at = animal.Position.Xz();
+                    Assert.True(_map.Terrain.WaterLevelAt(at) is { } level && animal.Position.Y <= level
+                        && animal.Position.Y > _map.Terrain.GroundAt(at.X, at.Y) - 0.05f, $"{animal.Kind} is out of the water at {at}");
+                }
+            }
+        }
+
+        AnimalKind[] wanted = [AnimalKind.Ikan, AnimalKind.KuraKura, AnimalKind.Bebek, AnimalKind.Buaya];
+        Assert.True(wanted.All(seen.Contains), $"missing {string.Join(", ", wanted.Except(seen))}");
+    }
+
+    [Fact]
+    public void FishAndCrocodilesKeepAwayFromASwimmer()
+    {
+        GameSession session = NewSession();
+        Pond pond = _map.Ponds[0];
+        session.Player.Teleport(_map, _map[PoiId.Empang].Position, 0f);
+        Run(session, 3f);
+        Animal fish = session.Population.Animals.Where(a => a.Kind == AnimalKind.Ikan)
+            .OrderBy(a => Vector2.Distance(a.Position.Xz(), pond.Center)).First();
+        // Jump in right next to it.
+        session.Player.Teleport(_map, fish.Position.Xz() + new Vector2(1.2f, 0f), 0f);
+        Run(session, 4f);
+        Assert.True(Vector2.Distance(fish.Position.Xz(), session.Player.Ground) > 4f, "the fish did not mind");
+    }
+
+    [Fact]
+    public void PondsAndRiversHaveWaterPlants()
+    {
+        foreach (string model in (ReadOnlySpan<string>)["teratai", "eceng_gondok", "gelagah"])
+        {
+            Assert.True(_map.Props.Count(p => p.Model == model) > 20, $"hardly any {model}");
+        }
+
+        foreach (Pond pond in _map.Ponds)
+        {
+            Assert.Contains(_map.Props, p => p.Afloat && Vector2.Distance(p.Position, pond.Center) < pond.Radius);
+        }
+
+        // Whatever floats is over water, and none of it is in anybody's way.
+        Assert.All(_map.Props.Where(p => p.Afloat), p => Assert.NotNull(_map.Terrain.WaterLevelAt(p.Position)));
+        Assert.All(_map.Props.Where(p => p.Model is "teratai" or "eceng_gondok" or "gelagah"), p => Assert.Equal(0f, p.Radius));
+    }
+
+    /// <summary>Seen along and across <paramref name="a"/>, does the body of <paramref name="b"/> reach into it?</summary>
+    private static bool Covers(Vehicle a, Vehicle b)
+    {
+        Vector2 forward = a.Forward;
+        Vector2 offset = b.Ground - a.Ground;
+        float cos = MathF.Abs(Vector2.Dot(forward, b.Forward));
+        float sin = MathF.Sqrt(MathF.Max(0f, 1f - (cos * cos)));
+        float halfLength = b.Spec.Length * 0.5f;
+        float halfWidth = b.Spec.Radius * 0.8f;
+        float reach = (a.Spec.Length * 0.5f) + (cos * halfLength) + (sin * halfWidth);
+        float wide = (a.Spec.Radius * 0.8f) + (sin * halfLength) + (cos * halfWidth);
+        return MathF.Abs(Vector2.Dot(offset, forward)) < reach * 0.9f && MathF.Abs(Vector2.Dot(offset, MathUtil.Left(forward))) < wide * 0.9f;
+    }
+
     [Fact]
     public void DeerLiveOnThePalaceLawn()
     {

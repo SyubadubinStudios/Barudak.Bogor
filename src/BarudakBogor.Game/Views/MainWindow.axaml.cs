@@ -328,6 +328,10 @@ public partial class MainWindow : Window
                 SsrIntensity = 0.55f,
                 SsrMaxDistance = 25f,
                 SsrSteps = 32,
+                // A ray advances 25 m / 32 = 0.78 m a step. With the default thickness (0.5 m) a
+                // step can jump clean over the band in which a hit counts, so walls reflected
+                // in stripes; the thickness has to cover a whole step.
+                SsrThickness = 1f,
             }, 4, 3, 1f, 1f),
             _ => (0.72, RendererOptions.Default with
             {

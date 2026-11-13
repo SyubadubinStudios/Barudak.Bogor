@@ -172,6 +172,32 @@ def anjing(A):
     T.limb("cat_white", tuple(pts[4]), tuple(pts[5]), 0.014, 0.008, segs=5)
 
 
+@asset("burung", "animal", center=True)
+def burung(A):
+    """Town pigeon. Wings are wing_l / wing_r (origin at the shoulder) so the game can flap them;
+    the two legs are leg_fl / leg_fr like the rooster's."""
+    B = A.part("body")
+    B.sphere("bird_grey", (0, 0, 0.13), 0.075, segs=8, rings=5, scale=(0.85, 1.5, 0.9), rot=(-12, 0, 0))
+    B.sphere("bird_neck", (0, -0.085, 0.175), 0.045, segs=6, rings=4, scale=(0.9, 1.0, 1.1))
+    neck = V(0, -0.1, 0.2)
+    H = A.part("head", pivot=tuple(neck))
+    H.sphere("bird_dark", (0, -0.115, 0.235), 0.034, segs=6, rings=4)
+    H.limb("chicken_leg", (0, -0.14, 0.236), (0, -0.18, 0.228), 0.011, 0.002, segs=4)
+    for sx in (-1, 1):
+        H.box("eye", (sx * 0.028, -0.125, 0.242), (0.008, 0.01, 0.01))
+        W = A.part("wing_l" if sx > 0 else "wing_r", pivot=(sx * 0.055, -0.02, 0.17))
+        W.sphere("bird_dark", (sx * 0.15, 0.03, 0.165), 0.1, segs=6, rings=3, scale=(1.05, 0.7, 0.1))
+        W.sphere("bird_grey", (sx * 0.1, 0.0, 0.17), 0.07, segs=6, rings=3, scale=(1.0, 0.8, 0.14))
+    for nm, sx in (("fl", 1), ("fr", -1)):
+        top = (sx * 0.03, 0.01, 0.08)
+        P = A.part("leg_" + nm, pivot=top)
+        P.limb("chicken_leg", top, (sx * 0.03, 0.0, 0.01), 0.008, 0.007, segs=4)
+        P.box("chicken_leg", (sx * 0.03, -0.015, 0.005), (0.028, 0.06, 0.01))
+    piv = V(0, 0.1, 0.13)
+    T = A.part("tail", pivot=tuple(piv))
+    T.blade("bird_dark", tuple(piv), tuple(piv + V(0, 0.13, -0.02)), 0.07, 0.09, thick=0.012, up=(0, 0, 1))
+
+
 @asset("ayam", "animal", center=True)
 def ayam(A):
     """Kampung rooster. Its two legs are leg_fl / leg_fr so the walk cycle drives them."""

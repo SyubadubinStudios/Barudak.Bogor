@@ -16,7 +16,7 @@ public sealed class RiverAndRailTests(WorldFixture fixture)
     [Fact]
     public void TheRiverHoldsWaterAllTheWayDown()
     {
-        Corridor river = _map.Corridors.Single(c => c.Kind == CorridorKind.River);
+        Corridor river = _map.Corridors.Single(c => c.NameKey == "river.ciliwung");
         Assert.True(river.Length > 12_000f);
         for (float d = 50f; d < river.Length - 50f; d += 150f)
         {
@@ -41,7 +41,8 @@ public sealed class RiverAndRailTests(WorldFixture fixture)
         {
             foreach (Vector2 p in bridge.Path)
             {
-                Assert.True(_map.Roads.IsOnRoad(p));
+                // A bridge carries a road, or the Sukabumi line over the Cisadane.
+                Assert.True(_map.Roads.IsOnRoad(p) || _map.Corridors.Any(c => c.Kind == CorridorKind.Rail && c.Closest(p, 3f, out _, out _, out _)));
                 // Driving height is the deck, well clear of the water; the earth below is the river.
                 // (Where two bridges meet, the higher deck wins by a few centimetres.)
                 Assert.InRange(_map.Terrain.HeightAt(p) - bridge.Height, -0.01f, 0.8f);

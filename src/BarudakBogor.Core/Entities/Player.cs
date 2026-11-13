@@ -94,6 +94,9 @@ public sealed class Player
 
     public bool Grounded { get; private set; } = true;
 
+    /// <summary>Upward speed in m/s while off the ground: positive on the way up, negative coming down.</summary>
+    public float VerticalSpeed => Grounded ? 0f : _verticalVelocity;
+
     /// <summary>True while wading in a pond deeper than the knees.</summary>
     public bool InWater { get; private set; }
 

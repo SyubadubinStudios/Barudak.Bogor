@@ -13,6 +13,8 @@ public enum BuildingStyle
     Kampus,
     Villa,
     Mall,
+    /// <summary>Only a footprint to bump into: the building itself is a model (see <see cref="Prop.Landmark"/>).</summary>
+    Landmark,
 }
 
 /// <summary>A procedurally placed building: an oriented box footprint with a height and a look.</summary>
@@ -27,7 +29,9 @@ public readonly record struct Building(
 }
 
 /// <summary>A hand placed model (landmark, stall, lamp). <see cref="Radius"/> 0 means no collision.</summary>
-public readonly record struct Prop(string Model, Vector2 Position, float Yaw, float Scale, float Radius);
+/// <param name="Landmark">A whole building: seen from far away, and bumped into through a <see cref="Building"/> footprint of its own.</param>
+/// <param name="Afloat">Drawn on the water surface instead of on the ground under it (lily pads, water hyacinth).</param>
+public readonly record struct Prop(string Model, Vector2 Position, float Yaw, float Scale, float Radius, bool Landmark = false, bool Afloat = false);
 
 public enum TreeKind
 {
@@ -378,6 +382,21 @@ public sealed class WorldMap
     }
 
     internal void AddSign(Sign sign) => _signs.Add(sign);
+
+    private readonly List<TrafficSignal> _signals = [];
+    private readonly Dictionary<(int Node, int Edge), TrafficSignal> _signalAt = [];
+
+    /// <summary>Every traffic light of the town.</summary>
+    public IReadOnlyList<TrafficSignal> Signals => _signals;
+
+    /// <summary>The light a driver arriving at <paramref name="node"/> along <paramref name="edge"/> has to obey, if there is one.</summary>
+    public TrafficSignal? SignalFor(int node, int edge) => _signalAt.TryGetValue((node, edge), out TrafficSignal signal) ? signal : null;
+
+    internal void AddSignal(TrafficSignal signal)
+    {
+        _signals.Add(signal);
+        _signalAt[(signal.Node, signal.Edge)] = signal;
+    }
 
     internal void AddBuilding(Building building)
     {

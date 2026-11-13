@@ -28,7 +28,7 @@ An open-world, GTA-style game set in and around the city of Bogor: rain that rea
 
 | ![Kota ramai](docs/images/ramai-kota.png) | ![Langit malam](docs/images/langit-malam.png) |
 |---|---|
-| Lalu lintas dan warga di jalur lingkar / Traffic and townsfolk on the ring road | Bintang dan awan malam / Stars and night cloud |
+| Lalu lintas dan warga di jalur lingkar / Traffic and townsfolk on the ring road | Bulan, bintang, dan awan malam / Moon, stars and night cloud |
 | ![Lari](docs/images/lari.png) | ![Ciliwung](docs/images/ciliwung.png) |
 | Karakter bertulang: lari / The skeletal character running | Sungai Ciliwung dari jembatan / The Ciliwung from a bridge |
 | ![Pengendara](docs/images/pengendara.png) | ![Kabut hujan](docs/images/kabut-hujan.png) |
@@ -41,6 +41,28 @@ An open-world, GTA-style game set in and around the city of Bogor: rain that rea
 | Botani Square di Jalan Pajajaran / Botani Square on Pajajaran Road | Peta kota mengikuti Bogor yang asli / The city map follows the real Bogor |
 | ![Genangan](docs/images/genangan.png) | ![Kokpit](docs/images/kokpit.png) |
 | Genangan dan pantulan saat hujan / Puddles and reflections in the rain | Dari kursi sopir angkot / From the angkot driver's seat |
+| ![Istana Bogor](docs/images/istana-bogor.png) | ![Masjid Raya](docs/images/masjid-raya.png) |
+| Istana Bogor di Kebun Raya / Bogor Palace in the Gardens | Masjid Raya Bogor / The Grand Mosque |
+| ![Katedral](docs/images/katedral.png) | ![Lawang Suryakencana](docs/images/lawang-suryakencana.png) |
+| Katedral Bogor / The Cathedral | Lawang Suryakencana, gerbang Pecinan / The Chinatown gate |
+| ![Balai Kota](docs/images/balai-kota.png) | ![Tol Jagorawi](docs/images/tol-jagorawi.png) |
+| Balai Kota Bogor / City Hall | Tol Jagorawi di alur aslinya / The Jagorawi toll road on its real line |
+| ![Cisadane](docs/images/cisadane.png) | ![Jembatan kereta](docs/images/jembatan-kereta.png) |
+| Sungai Cisadane di Empang / The Cisadane at Empang | Rel ke Sukabumi menyeberangi Cisadane / The Sukabumi line crossing the Cisadane |
+| ![Dramaga](docs/images/dramaga.png) | ![Situ Gede](docs/images/situ-gede.png) |
+| Jalan asli di Dramaga / The real streets of Dramaga | Situ Gede |
+| ![Sirkuit Sentul](docs/images/sirkuit-sentul.png) | ![Cisarua](docs/images/cisarua.png) |
+| Sirkuit Sentul / The Sentul circuit | Jalan Raya Puncak di Cisarua / Puncak Road at Cisarua |
+| ![Lampu merah](docs/images/lampu-merah.png) | ![Merpati](docs/images/burung-terbang.png) |
+| Lampu merah di simpang jalan raya / Traffic lights where main roads meet | Merpati terbang saat didekati / Pigeons take off when you come close |
+| ![Badut](docs/images/warga-badut.png) | ![Pedagang kaki lima](docs/images/warga-pkl.png) |
+| Badut dan polisi di antara warga / A clown and a policeman among the townsfolk | Pedagang kaki lima dan pengamen / A hawker and a busker |
+| ![Spanduk](docs/images/spanduk.png) | ![Videotron](docs/images/videotron.png) |
+| Spanduk di Pasar Anyar / A banner at Pasar Anyar | Videotron di pusat kota / The LED screen in the centre |
+| ![Teratai](docs/images/teratai.png) | ![Buaya](docs/images/buaya.png) |
+| Teratai di Empang / Lily pads on the Empang pond | Buaya pemalas di Ciliwung / The lazy crocodile of the Ciliwung |
+| ![Bebek](docs/images/bebek.png) | ![Berenang](docs/images/berenang.png) |
+| Bebek di kolam / A duck on the pond | Berenang / Swimming |
 
 Semua gambar di atas diambil dari game yang berjalan (`--capture`). / Every picture above was captured from the running game (`--capture`).
 
@@ -53,12 +75,16 @@ Semua gambar di atas diambil dari game yang berjalan (`--capture`). / Every pict
 Ini **fondasi yang bisa dimainkan** (v0.1), bukan game AAA yang sudah jadi. Yang sudah ada:
 
 - Dunia 40 km x 40 km yang di-streaming: 9 area (Pusat Kota, Kebun Raya, Pasar Anyar, Suryakencana, Dramaga, Sentul, Empang, Puncak, Gang Selot) dan lebih dari 20.000 bangunan prosedural.
-- **Pusat kota mengikuti Bogor yang asli.** Jalan utama (Pajajaran, Juanda, Otista, Jalak Harupat, Sudirman, Ahmad Yani, Pemuda, Suryakencana, Siliwangi, Kapten Muslihat, Merdeka, Pahlawan), alur Sungai Ciliwung, dan rel KRL memakai garis sebenarnya dari OpenStreetMap, diukur dari Tugu Kujang. Jalan lingkungan dan gang di pusat kota juga jalan asli (sekitar 300 km).
+- **Peta mengikuti Bogor yang asli, dari tepi ke tepi.** Sekitar 900 km jalan dari OpenStreetMap, diukur dari Tugu Kujang: Tol Jagorawi, Tol Lingkar Luar Bogor, Tol Bocimi, semua jalan raya sampai tepi peta, dan seluruh jalan lingkungan serta gang di pusat kota, Dramaga, Sentul, dan Cisarua (Puncak). Sungai Ciliwung dan Cisadane, rel KRL, dan rel ke Sukabumi dari Bogor Paledang memakai alur sebenarnya.
+- Istana Bogor, museum, Balai Kota, Katedral, Masjid Raya, dan Lawang Suryakencana punya model sendiri buatan Blender.
 - 46 tempat, di antaranya Kebun Raya, Istana Bogor, Air Mancur, Museum Zoologi, Museum PETA (Pembela Tanah Air), Museum Tanah dan Pertanian, Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Plaza Ekalokasari, Lotte Mart, Bogor Great Mall, Lawang Suryakencana (Pecinan), Lapangan Sempur, GOR Pajajaran, Stasiun Bogor, Terminal Baranangsiang, Balai Kota, Katedral, Masjid Raya, Alun-alun, Taman Kencana, Bendung Katulampa.
 - Sungai dengan jembatan, rel dengan perlintasan sebidang, dan KRL yang bolak-balik dari Stasiun Bogor (dan selalu berhenti kalau ada orang di rel).
 - Warga dengan jadwal harian (anak sekolah, pegawai, pedagang), payung saat hujan, dan celetukan untuk pemain yang lewat.
 - Cuaca dinamis: cerah, berawan, gerimis, hujan sedang, hujan deras, badai petir, kabut Puncak, mati lampu lokal. Jalan basah membuat ban lebih licin.
-- 13 kendaraan (angkot, motor, mobil keluarga, taksi, truk, delman, becak, bemo, bajaj, mobil tahu bulat, mobil bakso, gerobak cilok, gerobak bandrek), lalu lintas dan warga yang ramai, 9 jenis hewan termasuk kucing, anjing, dan ayam kampung.
+- 13 kendaraan (angkot, motor, mobil keluarga, taksi, truk, delman, becak, bemo, bajaj, mobil tahu bulat, mobil bakso, gerobak cilok, gerobak bandrek), lalu lintas yang mengantre, menyalip, dan berhenti di lampu merah, warga yang ramai (termasuk pedagang kaki lima, polisi, PNS, badut, pengamen, dan anak punk), 14 jenis hewan termasuk kucing, anjing, ayam kampung, monyet, kawanan merpati, serta ikan, kura-kura, bebek, dan buaya pemalas di kolam dan sungai.
+- Teratai, eceng gondok, dan gelagah di kolam dan tepi sungai.
+- Karakter pemain beranimasi tulang: jalan, lari, duduk, lompat, berenang, mengapung, memancing, badminton, dan bernyanyi.
+- Jalanan yang hidup: lampu merah, CCTV, spanduk, light box toko, dan videotron dengan iklan bergantian.
 - Siang-malam 24 menit dengan pagi, siang, sore, malam; langit berawan, berbintang, berbulan; kabut yang kadang datang bersama hujan.
 - Musik latar laras degung yang digubah oleh kode.
 - 5 karakter dengan kemampuan berbeda, 10 misi cerita (termasuk lanjutan flashdisk rahasia sampai tamat), dan 3 misi sampingan.
@@ -66,7 +92,7 @@ Ini **fondasi yang bisa dimainkan** (v0.1), bukan game AAA yang sudah jadi. Yang
 - Aktivitas: mancing, ojol, touring Puncak, badminton kampung, karaoke, fotografi hujan, usaha bandrek.
 - 5 karier/akhir cerita, simpan otomatis, dua bahasa (Indonesia/Inggris).
 
-Yang belum: lihat [PLAN.md](PLAN.md) dan [Progress.md](Progress.md). Visualnya low-poly bergaya, belum setara AAA, dan performa di grafis terintegrasi terbatas (Intel UHD 620, jendela 1280 x 720: sekitar 60 fps pada Hemat, 30 fps pada Sedang, dan 20 fps pada Tinggi dengan resolusi adaptif). Tempat nyata punya papan nama dan beberapa punya bentuk khas dari balok, tetapi bukan tiruan bentuk aslinya.
+Yang belum: lihat [PLAN.md](PLAN.md) dan [Progress.md](Progress.md). Visualnya low-poly bergaya, belum setara AAA, dan performa di grafis terintegrasi terbatas (Intel UHD 620, jendela 1280 x 720: sekitar 60 fps pada Hemat, 30 fps pada Sedang, dan 20 fps pada Tinggi dengan resolusi adaptif). Tempat nyata punya papan nama; enam bangunan terkenal punya model sendiri yang menggambarkan bentuk umumnya, bukan tiruan terukur dari aslinya, dan mal masih berupa balok bergaya.
 
 Data peta: © kontributor OpenStreetMap, lisensi ODbL.
 
@@ -114,12 +140,16 @@ Gamepad (XInput) juga didukung: stik kiri jalan/setir, stik kanan kamera, RT/LT 
 This is a **playable foundation** (v0.1), not a finished AAA game. What exists:
 
 - A streamed 40 km x 40 km world: 9 areas (City Centre, Botanical Gardens, Pasar Anyar, Suryakencana, Dramaga, Sentul, Empang, Puncak, Selot Alley) and more than 20,000 procedural buildings.
-- **The city centre follows the real Bogor.** The main roads (Pajajaran, Juanda, Otista, Jalak Harupat, Sudirman, Ahmad Yani, Pemuda, Suryakencana, Siliwangi, Kapten Muslihat, Merdeka, Pahlawan), the course of the Ciliwung and the commuter railway use their true lines from OpenStreetMap, measured from Tugu Kujang. The side streets and alleys of the centre are the real ones too (about 300 km).
+- **The map follows the real Bogor from edge to edge.** About 900 km of roads from OpenStreetMap, measured from Tugu Kujang: the Jagorawi, Bogor Outer Ring and Bocimi toll roads, every main road out to the edge of the map, and every side street and alley of the city centre, Dramaga, Sentul and Cisarua (Puncak). The Ciliwung and the Cisadane, the commuter railway and the line to Sukabumi from Bogor Paledang run along their true courses.
+- Bogor Palace, the museums, City Hall, the Cathedral, the Grand Mosque and the Suryakencana gate have models of their own, built in Blender.
 - 46 places, among them the Botanical Gardens, Bogor Palace, the Fountain, the Zoology Museum, the PETA Museum, the Soil and Agriculture Museum, Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Ekalokasari Plaza, Lotte Mart, Bogor Great Mall, the Suryakencana gate (Chinatown), Sempur Field, Pajajaran Sports Ground, Bogor Station, Baranangsiang Terminal, City Hall, the Cathedral, the Grand Mosque, the Town Square, Taman Kencana and Katulampa Weir.
 - A river with bridges, a railway with level crossings, and a commuter train shuttling from Bogor Station (it always stops for someone on the track).
 - Townsfolk with daily routines (schoolchildren, office workers, traders), umbrellas in the rain, and small talk for a passing player.
 - Dynamic weather: clear, cloudy, drizzle, rain, heavy rain, thunderstorm, Puncak fog and local blackouts. Wet roads reduce tyre grip.
-- 13 vehicles (angkot, motorbike, family car, taxi, truck, horse cart, becak, bemo, auto rickshaw, tahu bulat truck, bakso truck, cilok cart, bandrek cart), busy traffic and townsfolk, and 9 kinds of animals including stray cats, dogs and chickens.
+- 13 vehicles (angkot, motorbike, family car, taxi, truck, horse cart, becak, bemo, auto rickshaw, tahu bulat truck, bakso truck, cilok cart, bandrek cart), traffic that queues, overtakes and stops at red lights, busy townsfolk (hawkers, police, civil servants, clowns, buskers and punks among them), and 14 kinds of animals including stray cats, dogs, chickens, monkeys, flocks of pigeons, and fish, turtles, ducks and a lazy crocodile in the ponds and rivers.
+- Lily pads, water hyacinth and reeds in the ponds and along the river banks.
+- A skeletal player character: walking, running, sitting, jumping, swimming, treading water, fishing, badminton and singing.
+- Streets with things on them: traffic lights, CCTV masts, banners, shop light boxes and LED screens that cycle through adverts.
 - A 24-minute day with morning, midday, afternoon and night; a sky with clouds, stars and a moon; mist that sometimes comes with the rain.
 - Background music in the Sundanese degung scale, composed in code.
 - 5 characters with different perks, 10 story missions (including the flash drive story through to its ending) and 3 side missions.
@@ -127,7 +157,7 @@ This is a **playable foundation** (v0.1), not a finished AAA game. What exists:
 - Activities: fishing, ojol (ride-hailing), Puncak touring, kampung badminton, karaoke, rain photography, a bandrek business.
 - 5 careers/endings, autosave, two languages (Indonesian/English).
 
-What is missing: see [PLAN.md](PLAN.md) and [Progress.md](Progress.md). The look is stylised low-poly rather than AAA, and performance on integrated graphics is limited (Intel UHD 620, 1280 x 720 window: about 60 fps at Hemat, 30 fps at Sedang and 20 fps at Tinggi with dynamic resolution). Real places carry name boards and a few have a distinctive block-built shape, but they are not likenesses of the originals.
+What is missing: see [PLAN.md](PLAN.md) and [Progress.md](Progress.md). The look is stylised low-poly rather than AAA, and performance on integrated graphics is limited (Intel UHD 620, 1280 x 720 window: about 60 fps at Hemat, 30 fps at Sedang and 20 fps at Tinggi with dynamic resolution). Real places carry name boards; six well-known buildings have models of their own that show their general shape rather than a measured likeness, and the malls are still stylised boxes.
 
 Map data: © OpenStreetMap contributors, ODbL.
 

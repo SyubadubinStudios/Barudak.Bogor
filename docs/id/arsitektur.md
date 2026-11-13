@@ -7,7 +7,7 @@ Dibuat oleh Ariana Mischa Fadhila dari Syubadubin Studios. · [English](../en/ar
 | Lapisan | Pilihan |
 |---|---|
 | Bahasa dan runtime | C# di .NET 10 |
-| Render, audio | Three.Net 0.12.1: inti Rust (wgpu) di balik C ABI dengan API C#. DirectX 12 di Windows |
+| Render, audio | Three.Net 0.12.2: inti Rust (wgpu) di balik C ABI dengan API C#. DirectX 12 di Windows |
 | Jendela dan antarmuka | Avalonia UI 12; tampilan 3D adalah kontrol `ThreeNetView` dengan HUD digambar di atasnya |
 | Model | Skrip Python Blender (low-poly, tanpa tekstur) dan Rodin/Hyper3D (pemberi misi) |
 
@@ -45,8 +45,10 @@ Hal yang perlu diketahui sebelum mengubahnya:
 
 - **Koordinat.** +X timur, +Z selatan, +Y atas. Yaw 0 menghadap +Z dan yaw positif berbelok ke +X, yaitu sisi kiri. Hanya `MathUtil.Forward`, `Left`, dan `YawOf` yang memuat aturan ini.
 - **Dunia adalah fungsi dari seed.** Jalan, bangunan, dan tempat dibuat sekali (sekitar 1,5 detik). Pohon diturunkan per chunk dari hash koordinat, jadi chunk mana pun bisa dibangun dalam urutan apa pun dengan hasil yang sama.
-- **Tinggi medan** didefinisikan pada kisi 8 m lalu diinterpolasi. Mesh medan memakai kisi yang sama, jadi tinggi untuk gameplay dan tinggi yang digambar selalu cocok.
-- **Kendaraan** memakai model arcade: model kemudi sepeda dengan cengkeraman maju dan samping yang terpisah. Tidak ada solver benda tegar. Lalu lintas digerakkan mengikuti lajur secara kinematik dan berjalan di kiri.
+- **Tinggi medan** didefinisikan pada kisi 8 m; tiap sel dibaca sebagai dua segitiga, persis seperti mesh medan menggambarnya, jadi tinggi untuk gameplay dan tinggi yang digambar selalu cocok.
+- **Jalan adalah pijakan.** Jalan digambar rata dari tepi ke tepi setinggi sisi tertingginya, jadi di lereng ia berdiri di atas tanah. `RoadNetwork.BuildSurfaces` menghitung profil tinggi tiap ruas sekali saat dunia dibuat, dan `Terrain.HeightAt` menjawab dengan permukaan jalan di tempat seperti itu (`RoadNetwork.SurfaceAt`); `ChunkBuilder` menggambar jalan dari `HeightAt` yang sama.
+- **Peta asli.** Jalan dimuat dari `World/bogor_streets.txt`, yang dibuat `tools/osm/build_streets.py` dari OpenStreetMap; skrip itu juga menghasilkan titik Sungai Cisadane dan rel Sukabumi.
+- **Kendaraan** memakai model arcade: model kemudi sepeda dengan cengkeraman maju dan samping yang terpisah. Tidak ada solver benda tegar. Lalu lintas digerakkan mengikuti lajur secara kinematik dan berjalan di kiri. Tiap pengemudi melihat siapa yang ada di lajurnya (di ruas yang sama lewat jarak sepanjang ruas, di luar itu lewat koridor lurus di depannya) dan mengikuti dengan jarak henti; kendaraan yang berhenti atau lamban disalip dengan bergeser ke tengah jalan bila tidak ada yang datang dari depan; di persimpangan yang akan tertabrak dari samping jalan dulu. Di atas semua itu ada satu aturan keras: sebuah langkah yang memasukkan kotak kendaraan ke kotak lain dibatalkan (`Population.UpdateTraffic`). Lampu merah (`TrafficSignal`, `WorldMap.Signals`) bergiliran per lengan menurut `Population.SignalTime`; yang menyala digambar `EntityRenderer.DrawSignals`.
 - **Misi** adalah skrip linear dari `Talk`, `Reach`, `Until`, `Ask`, `Do`. Apa pun yang dibuat atau diubah misi didaftarkan lewat `OnEnd` supaya dibatalkan bagaimanapun misi berakhir.
 - **Event, bukan callback.** Kode gameplay memanggil `session.Emit` atau `session.Toast`; jendela menguras antrean sekali per frame.
 
@@ -57,7 +59,7 @@ Hal yang perlu diketahui sebelum mengubahnya:
 | `Rendering/WorldRenderer` | Streaming chunk 256 m di sekitar pemain; mesh dibangun di thread latar (`ChunkBuilder`) dan diunggah beberapa per frame. Ubin kasar 2 km di luarnya memberi siluet pegunungan |
 | `Rendering/ChunkBuilder` | Medan, tekstur tanah per chunk, pita jalan, bangunan digabung jadi satu mesh per chunk, pohon dan properti ber-instance |
 | `Rendering/Textures` | Melukis atlas fasad bangunan dan tekstur jalan saat mulai; basah dan cahaya jendela adalah parameter material |
-| `Rendering/EntityRenderer` | View yang dipakai ulang untuk pemain, kendaraan, orang, hewan, pemberi misi, dan penanda; jalan dan roda dianimasikan lewat kode dari bagian model yang bernama; pemain adalah mesh berkulit di atas rangka tulang, digerakkan campuran klip Blender (diam, jalan, lari, duduk) |
+| `Rendering/EntityRenderer` | View yang dipakai ulang untuk pemain, kendaraan, orang, hewan, pemberi misi, dan penanda; jalan dan roda dianimasikan lewat kode dari bagian model yang bernama; pemain adalah mesh berkulit di atas rangka tulang, digerakkan campuran klip Blender (diam, jalan, lari, duduk, dan enam gerakan: lompat, berenang, mengapung, memancing, badminton, bernyanyi); hewan air (`Animal.IsAquatic`) diapungkan Core di permukaan air dan hanya diberi ayunan ekor dan goyangan kecil di sini |
 | `Rendering/Atmosphere` | Matahari, langit, kabut, garis hujan, lampu jalan |
 | `Rendering/CameraRig` | Kamera orang ketiga |
 | `Audio/GameAudio` | Semua suara disintesis saat mulai |

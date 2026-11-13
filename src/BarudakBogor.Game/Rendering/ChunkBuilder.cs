@@ -546,6 +546,12 @@ public static class ChunkBuilder
 
     private static void AddBuilding(MeshData mesh, in Building b, Vector2 origin, bool detail)
     {
+        if (b.Style == BuildingStyle.Landmark)
+        {
+            // Drawn as a model of its own (a landmark prop); this is only its footprint.
+            return;
+        }
+
         (int first, int count) = WorldTextures.VariantsOf(b.Style);
         int variant = first + (int)(b.Seed % (uint)count);
         int tiles = variant * WorldTextures.TilesPerVariant;
@@ -693,9 +699,10 @@ public static class ChunkBuilder
         map.ForEachProp(min, max, prop =>
         {
             // From a distance only what has some bulk reads at all: landmarks, not lamp posts.
-            if (detail || prop.Radius >= 2f)
+            if (detail || prop.Radius >= 2f || prop.Landmark)
             {
-                Add(data, prop.Model, prop.Position, terrain.HeightAt(prop.Position), prop.Yaw, prop.Scale, min);
+                float height = prop.Afloat && terrain.WaterLevelAt(prop.Position) is { } water ? water : terrain.HeightAt(prop.Position);
+                Add(data, prop.Model, prop.Position, height, prop.Yaw, prop.Scale, min);
             }
         });
     }

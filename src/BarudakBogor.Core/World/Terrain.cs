@@ -123,13 +123,23 @@ public sealed class Terrain
         }
 
         float best = float.MaxValue;
+        bool wet = false;
         foreach ((int index, int segment) in bucket)
         {
             Corridor candidate = _corridors[index];
             float t = MathUtil.ClosestOnSegment(candidate.Points[segment], candidate.Points[segment + 1], p, out Vector2 closest);
             float d2 = Vector2.DistanceSquared(p, closest);
-            if (d2 < best && d2 < candidate.Blend * candidate.Blend)
+            if (d2 >= candidate.Blend * candidate.Blend)
             {
+                continue;
+            }
+
+            // Where a railway crosses a river the channel wins, or the track bed would dam it.
+            float channel = candidate.HalfWidth + 5f;
+            bool inChannel = candidate.Kind == CorridorKind.River && d2 < channel * channel;
+            if (inChannel == wet ? d2 < best : inChannel)
+            {
+                wet = inChannel;
                 best = d2;
                 corridor = candidate;
                 level = MathUtil.Lerp(candidate.Levels[segment], candidate.Levels[segment + 1], t);
@@ -179,7 +189,11 @@ public sealed class Terrain
         float h10 = LatticeHeight(ix + 1, iz);
         float h01 = LatticeHeight(ix, iz + 1);
         float h11 = LatticeHeight(ix + 1, iz + 1);
-        float ground = MathUtil.Lerp(MathUtil.Lerp(h00, h10, tx), MathUtil.Lerp(h01, h11, tx), tz);
+        // The mesh draws each cell as two triangles split from (1,0) to (0,1); standing on it
+        // means reading the same two planes, not a bilinear patch that sags or bulges between them.
+        float ground = tx + tz <= 1f
+            ? h00 + ((h10 - h00) * tx) + ((h01 - h00) * tz)
+            : h11 + ((h01 - h11) * (1f - tx)) + ((h10 - h11) * (1f - tz));
         float detail = WaterDetail(new Vector2(x, z), 0f);
         if (detail > 0f)
         {
@@ -215,8 +229,23 @@ public sealed class Terrain
         return detail;
     }
 
-    /// <summary>Ground height in metres at a world position: the earth, or a bridge deck or platform over it.</summary>
+    private RoadNetwork? _roads;
+
+    /// <summary>From now on <see cref="HeightAt(float, float)"/> also answers with the road surface where a road is built up above the ground.</summary>
+    internal void AttachRoads(RoadNetwork roads) => _roads = roads;
+
+    /// <summary>
+    /// Height in metres of what one stands on at a world position: the earth, a bridge deck or
+    /// platform over it, or the surface of a road that is built up across a slope.
+    /// </summary>
     public float HeightAt(float x, float z)
+    {
+        float solid = SolidAt(x, z);
+        return _roads is null ? solid : MathF.Max(solid, _roads.SurfaceAt(x, z));
+    }
+
+    /// <summary>The earth, or a bridge deck or platform over it: everything but the road surface.</summary>
+    internal float SolidAt(float x, float z)
     {
         float ground = GroundAt(x, z);
         if (x >= _deckMin.X && x <= _deckMax.X && z >= _deckMin.Y && z <= _deckMax.Y)

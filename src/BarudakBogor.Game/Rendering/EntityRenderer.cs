@@ -1,5 +1,6 @@
 using System.Numerics;
 using BarudakBogor.Entities;
+using BarudakBogor.World;
 using BarudakBogor.Gameplay;
 using BarudakBogor.Numerics;
 using ThreeNet;
@@ -47,10 +48,30 @@ public sealed class EntityRenderer
         public float SitWeight;
         /// <summary>Where in the stride the legs are, 0..1; shared by walk and run so they blend in step.</summary>
         public float Stride;
+
+        /// <summary>The clips for doing something other than walking, in the order of <see cref="Act"/> (from Jump on).</summary>
+        public AnimationPlayer?[] Acts = [];
+        public float[] ActWeights = [];
+        public float[] ActLengths = [];
+        public float Clock;
     }
 
+    /// <summary>What the player's body is busy with, when it is not just standing, walking or sitting.</summary>
+    private enum Act
+    {
+        None = -1,
+        Jump,
+        Swim,
+        Tread,
+        Fish,
+        Badminton,
+        Sing,
+    }
+
+    private static readonly string[] ActClips = ["jump", "swim", "tread", "fish", "badminton", "sing"];
+
     private static readonly string[] HumanParts = ["leg_l", "leg_r", "arm_l", "arm_r", "head", "torso"];
-    private static readonly string[] AnimalParts = ["leg_fl", "leg_fr", "leg_rl", "leg_rr", "head", "tail"];
+    private static readonly string[] AnimalParts = ["leg_fl", "leg_fr", "leg_rl", "leg_rr", "head", "tail", "wing_l", "wing_r"];
     private static readonly string[] WheelParts = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "wheel_f", "wheel_r", "wheel_l", "wheel_r", "leg_fl", "leg_fr", "leg_rl", "leg_rr"];
 
     private readonly Scene _scene;
@@ -66,6 +87,11 @@ public sealed class EntityRenderer
     private readonly List<Node> _beacons = [];
     private readonly Node[] _canopies;
     private readonly Node _umbrellaHandles;
+
+    // The lit lamps of the traffic lights: one instanced mesh per colour, refilled every frame.
+    private readonly Node[] _signalLamps = new Node[3];
+    private readonly List<Matrix4x4>[] _signalInstances = [[], [], []];
+    private float[]? _signalGround;
     private readonly List<Matrix4x4>[] _canopyInstances;
     private readonly List<Matrix4x4> _handleInstances = [];
     private readonly Node _cockpit;
@@ -118,8 +144,23 @@ public sealed class EntityRenderer
         _umbrellaHandles.Visible = false;
         _umbrellaHandles.CastShadow = false;
 
-        // The view from the driver's seat: bonnet, dashboard, wheel, pillars and roof edge. It
-        // stands in for the vehicle's own model, whose glass is not see-through.
+        Geometry lens = scene.CreateBoxGeometry(0.2f, 0.2f, 0.03f);
+        Vector3[] lampColours = [new(1f, 0.1f, 0.06f), new(1f, 0.72f, 0.08f), new(0.1f, 1f, 0.35f)];
+        for (int i = 0; i < _signalLamps.Length; i++)
+        {
+            Material glow = scene.CreateMaterial(MaterialOptions.Pbr(new Vector4(lampColours[i], 1f), 0f, 0.4f) with
+            {
+                Emissive = lampColours[i],
+                EmissiveIntensity = 5f,
+            });
+            _signalLamps[i] = scene.AddMesh(lens, glow, name: "lampu_lalu_lintas");
+            _signalLamps[i].CastShadow = false;
+            _signalLamps[i].Visible = false;
+        }
+
+        // The view from the driver's seat: bonnet, dashboard, wheel, pillars, roof, and the cabin
+        // round it (floor, doors, seats, console), so that looking down shows a car and not the
+        // road. It stands in for the vehicle's own model, whose glass is not see-through.
         _cockpit = scene.CreateNode(null, "kokpit");
         _cockpit.Visible = false;
         _cockpitPaint = scene.CreateMaterial(MaterialOptions.Pbr(new Vector4(0.12f, 0.62f, 0.34f, 1f), 0.2f, 0.5f));
@@ -138,10 +179,29 @@ public sealed class EntityRenderer
         Piece(trim, new Vector3(0.3f, 0.07f, 0.2f), new Vector3(0f, -0.57f, 1.12f), -0.3f);
         Piece(_cockpitPaint, new Vector3(0.06f, 1.05f, 0.06f), new Vector3(-0.46f, 0.02f, 1.2f), 0.4f);
         Piece(_cockpitPaint, new Vector3(0.06f, 1.05f, 0.06f), new Vector3(1.26f, 0.02f, 1.2f), 0.4f);
-        Piece(_cockpitPaint, new Vector3(1.78f, 0.06f, 1f), new Vector3(0.4f, 0.5f, 0.5f));
+        Piece(_cockpitPaint, new Vector3(1.78f, 0.06f, 2f), new Vector3(0.4f, 0.5f, 0f));
         Piece(trim, new Vector3(0.22f, 0.06f, 0.03f), new Vector3(0.4f, 0.4f, 0.95f));
-        Piece(_cockpitPaint, new Vector3(0.05f, 0.4f, 1.6f), new Vector3(-0.49f, -0.78f, 0.3f));
-        Piece(_cockpitPaint, new Vector3(0.05f, 0.4f, 1.6f), new Vector3(1.29f, -0.78f, 0.3f));
+        Material seat = scene.CreateMaterial(MaterialOptions.Pbr(new Vector4(0.2f, 0.2f, 0.22f, 1f), 0f, 0.95f));
+        Material mat = scene.CreateMaterial(MaterialOptions.Pbr(new Vector4(0.045f, 0.045f, 0.05f, 1f), 0f, 1f));
+        // Doors up to the window sill, with an arm rest each.
+        Piece(_cockpitPaint, new Vector3(0.05f, 0.82f, 2.5f), new Vector3(-0.49f, -0.8f, 0.2f));
+        Piece(_cockpitPaint, new Vector3(0.05f, 0.82f, 2.5f), new Vector3(1.29f, -0.8f, 0.2f));
+        Piece(seat, new Vector3(0.07f, 0.06f, 0.6f), new Vector3(-0.44f, -0.62f, 0.25f));
+        Piece(seat, new Vector3(0.07f, 0.06f, 0.6f), new Vector3(1.24f, -0.62f, 0.25f));
+        // Floor, the footwell wall under the dashboard, the shelf below it.
+        Piece(mat, new Vector3(1.84f, 0.05f, 2.5f), new Vector3(0.4f, -1.2f, 0.2f));
+        Piece(mat, new Vector3(1.78f, 0.5f, 0.06f), new Vector3(0.4f, -0.98f, 1.43f));
+        Piece(trim, new Vector3(1.72f, 0.2f, 0.26f), new Vector3(0.4f, -0.9f, 1.28f));
+        // Seats, the console between them and the gear lever.
+        Piece(seat, new Vector3(0.5f, 0.14f, 0.52f), new Vector3(0f, -0.93f, 0.1f));
+        Piece(seat, new Vector3(0.5f, 0.14f, 0.52f), new Vector3(0.8f, -0.93f, 0.1f));
+        Piece(seat, new Vector3(0.5f, 0.66f, 0.12f), new Vector3(0f, -0.55f, -0.34f), -0.12f);
+        Piece(seat, new Vector3(0.5f, 0.66f, 0.12f), new Vector3(0.8f, -0.55f, -0.34f), -0.12f);
+        Piece(trim, new Vector3(0.2f, 0.24f, 1.1f), new Vector3(0.4f, -1.05f, 0.6f));
+        Piece(trim, new Vector3(0.03f, 0.22f, 0.03f), new Vector3(0.4f, -0.84f, 0.72f), -0.25f);
+        Piece(seat, new Vector3(0.05f, 0.05f, 0.05f), new Vector3(0.4f, -0.72f, 0.75f));
+        // The back of the cabin.
+        Piece(seat, new Vector3(1.78f, 0.7f, 0.12f), new Vector3(0.4f, -0.8f, -1f));
         _steeringWheel = scene.AddMesh(scene.CreateTorusGeometry(0.17f, 0.016f, 6, 20), trim, _cockpit);
         _steeringWheel.Position = new Vector3(0f, -0.5f, 0.92f);
         _steeringWheel.CastShadow = false;
@@ -231,7 +291,7 @@ public sealed class EntityRenderer
         _stamp++;
         Vector2 eye = cameraPosition.Xz();
 
-        UpdatePlayer(session.Player, dt);
+        UpdatePlayer(session.Player, dt, session.Activity);
         if (session.Player.Vehicle is null)
         {
             _cockpit.Visible = false;
@@ -290,6 +350,7 @@ public sealed class EntityRenderer
         }
 
         DrawTrain(session.Train, eye);
+        DrawSignals(session, eye);
 
         foreach (Animal animal in session.Population.Animals)
         {
@@ -298,6 +359,33 @@ public sealed class EntityRenderer
                 view.Pivot.Position = animal.Position;
                 view.Pivot.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, animal.Yaw);
                 AnimateAnimal(view, animal.Speed, dt, session.Time);
+                if (Animal.IsAquatic(animal.Kind))
+                {
+                    // Afloat: a slow bob on the water, and a tail that works only as hard as the swimming.
+                    float clock = (float)session.Time;
+                    if (animal.Kind != AnimalKind.Ikan)
+                    {
+                        view.Pivot.Position = animal.Position + new Vector3(0f, MathF.Sin((clock * 1.7f) + animal.Id) * 0.012f, 0f);
+                    }
+
+                    if (view.Parts.Length > 5 && view.Parts[5] is { } fin)
+                    {
+                        (float beat, float sweep) = animal.Kind switch
+                        {
+                            AnimalKind.Ikan => (5f + (animal.Speed * 4f), 0.3f + (0.15f * animal.Speed)),
+                            AnimalKind.Buaya => (2.2f, 0.05f + (0.3f * MathUtil.Saturate(animal.Speed))),
+                            _ => (4f, 0.25f),
+                        };
+                        fin.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.Sin((clock * beat) + animal.Id) * sweep);
+                    }
+                }
+                if (view.Parts.Length > 7 && view.Parts[6] is { } wingLeft && view.Parts[7] is { } wingRight)
+                {
+                    // On the wing: flap. On the ground: folded down against the body.
+                    float lift = animal.Airborne ? MathF.Sin(((float)session.Time * 24f) + view.Phase) * 0.85f : -1.35f;
+                    wingLeft.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, lift);
+                    wingRight.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -lift);
+                }
             }
         }
 
@@ -354,6 +442,43 @@ public sealed class EntityRenderer
 
     // ------------------------------------------------------------------ train
 
+    /// <summary>Lights the lamp each traffic light is showing right now, for the junctions near the camera.</summary>
+    private void DrawSignals(GameSession session, Vector2 eye)
+    {
+        IReadOnlyList<TrafficSignal> signals = session.Map.Signals;
+        _signalGround ??= [.. signals.Select(signal => session.Map.Terrain.HeightAt(signal.Position))];
+        foreach (List<Matrix4x4> list in _signalInstances)
+        {
+            list.Clear();
+        }
+
+        double time = session.Population.SignalTime;
+        for (int i = 0; i < signals.Count; i++)
+        {
+            TrafficSignal signal = signals[i];
+            if (Vector2.DistanceSquared(signal.Position, eye) > 320f * 320f)
+            {
+                continue;
+            }
+
+            // Red on top, green at the bottom; the lenses sit a hand in front of the post.
+            SignalColour colour = signal.ColourAt(time);
+            float height = colour switch { SignalColour.Red => 3.55f, SignalColour.Yellow => 3.2f, _ => 2.85f };
+            Vector2 face = signal.Position + (MathUtil.Forward(signal.Yaw) * 0.235f);
+            _signalInstances[(int)colour].Add(Matrix4x4.CreateRotationY(signal.Yaw)
+                * Matrix4x4.CreateTranslation(face.X, _signalGround[i] + height, face.Y));
+        }
+
+        for (int i = 0; i < _signalLamps.Length; i++)
+        {
+            _signalLamps[i].Visible = _signalInstances[i].Count > 0;
+            if (_signalInstances[i].Count > 0)
+            {
+                _signalLamps[i].SetInstances([.. _signalInstances[i]]);
+            }
+        }
+    }
+
     private void DrawTrain(Train? train, Vector2 eye)
     {
         bool near = false;
@@ -386,7 +511,7 @@ public sealed class EntityRenderer
 
     // ------------------------------------------------------------------ player
 
-    private void UpdatePlayer(Player player, float dt)
+    private void UpdatePlayer(Player player, float dt, Activities.Activity? activity)
     {
         string model = player.Profile.Model;
         if (model != _playerModel)
@@ -438,7 +563,18 @@ public sealed class EntityRenderer
         _player.Pivot.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, player.Yaw);
         if (_playerRig is not null)
         {
-            AnimateRig(_playerRig, riding ? 0f : player.Speed, dt, sitting: riding);
+            // What the body is doing besides walking: in the air, in the water, or at a game.
+            Act act = riding ? Act.None
+                : player.InWater ? (player.Speed > 0.35f ? Act.Swim : Act.Tread)
+                : !player.Grounded ? Act.Jump
+                : activity switch
+                {
+                    Activities.FishingGame => Act.Fish,
+                    Activities.RhythmGame { Lanes: 2 } => Act.Badminton,
+                    Activities.RhythmGame => Act.Sing,
+                    _ => Act.None,
+                };
+            AnimateRig(_playerRig, riding ? 0f : player.Speed, dt, sitting: riding, act, player.VerticalSpeed);
         }
         else
         {
@@ -463,14 +599,37 @@ public sealed class EntityRenderer
             Sit = rigged.Sit?.Play(loop: true, speed: 0f, weight: 0f),
             WalkLength = rigged.Walk?.Duration ?? 1f,
             RunLength = rigged.Run?.Duration ?? 1f,
+            // After the others, so that while one of these is on it has the last word.
+            Acts = [.. ActClips.Select(name => rigged.Clips.GetValueOrDefault(name)?.Play(loop: true, speed: 0f, weight: 0f))],
+            ActWeights = new float[ActClips.Length],
+            ActLengths = [.. ActClips.Select(name => rigged.Clips.GetValueOrDefault(name)?.Duration ?? 1f)],
         };
     }
 
-    private static void AnimateRig(Rig rig, float speed, float dt, bool sitting)
+    private static void AnimateRig(Rig rig, float speed, float dt, bool sitting, Act act = Act.None, float rising = 0f)
     {
         float run = sitting ? 0f : MathUtil.SmoothStep(2f, 4.6f, speed);
         float walk = sitting ? 0f : MathUtil.Saturate(speed / 0.9f);
         float ease = 1f - MathF.Exp(-dt * 10f);
+        rig.Clock += dt;
+        for (int i = 0; i < rig.Acts.Length; i++)
+        {
+            if (rig.Acts[i] is not { } clip)
+            {
+                continue;
+            }
+
+            rig.ActWeights[i] += (((int)act == i ? 1f : 0f) - rig.ActWeights[i]) * ease;
+            // The jump is not played but read off the fall: pushing off, the top, reaching for the ground.
+            // Swimming keeps time with the distance covered, the rest with the clock.
+            clip.Time = (Act)i switch
+            {
+                Act.Jump => MathUtil.Saturate(0.5f - (rising / 12.4f)) * rig.ActLengths[i] * 0.999f,
+                _ => rig.Clock % rig.ActLengths[i],
+            };
+            clip.Weight = rig.ActWeights[i] < 0.004f ? 0f : rig.ActWeights[i];
+        }
+
         rig.WalkWeight += (walk - rig.WalkWeight) * ease;
         rig.RunWeight += (run - rig.RunWeight) * ease;
         rig.SitWeight += ((sitting ? 1f : 0f) - rig.SitWeight) * ease;

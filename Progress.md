@@ -4,6 +4,47 @@ Dibuat oleh Ariana Mischa Fadhila dari Syubadubin Studios.
 
 Roadmap ada di [PLAN.md](PLAN.md). Entri terbaru di atas.
 
+## 2026-11-13 — Seluruh peta asli, bangunan khas, lalu lintas tertib, kehidupan jalanan dan air, animasi gerakan (sesi 10)
+
+Diverifikasi dengan 86 tes Core (lulus), tur `--capture` penuh ke `docs/images`, dan `--bench`. Dirilis sebagai 0.3.0.
+
+- **Dua butir Fase 2 yang tersisa selesai.** Dramaga, Sentul, dan Puncak (Cisarua) memakai jalan aslinya dari OpenStreetMap; Tol Jagorawi, Lingkar Luar Bogor, dan Bocimi, Sungai Cisadane, dan rel Bogor Paledang-Sukabumi (dengan jembatan di atas Cisadane) ada di alur aslinya. `bogor_streets.txt` kini memuat seluruh peta (8.442 ruas); alat pembuatnya ada di `tools/osm`. Istana Bogor, tiga museum, Balai Kota, Katedral, Masjid Raya, dan Lawang Suryakencana punya model Blender sendiri (`assets/blender/landmarks.py`).
+- **Karakter tertanam di tanah** (laporan): jalan digambar rata dari tepi ke tepi setinggi sisi tertingginya, sehingga di lereng berada di atas tanah, sementara pijakan masih membaca tanah. Kini `RoadNetwork.BuildSurfaces` mencatat profil tiap ruas dan `Terrain.HeightAt` menjawab dengan permukaan jalan; `Terrain.GroundAt` membaca dua segitiga per sel persis seperti yang digambar. Diuji `NobodySinksIntoARoad`.
+- **Kendaraan keluar jalur di tol** (laporan): arah kendaraan diambil dari 5 m di depan dan di belakangnya, dan pelunakan posisi hanya ke samping, jadi mobil cepat tidak lagi tertinggal ke luar tikungan.
+- **Kendaraan tidak saling menembus** (permintaan). Pengemudi mengikuti yang di depan dengan jarak henti, menyalip yang berhenti atau lamban bila lajur lawan kosong, mengalah di persimpangan, dan menghindari kendaraan parkir serta kendaraan pemain. Aturan terakhir yang tidak pernah dilonggarkan: langkah yang memasukkan kotak kendaraan ke kotak lain dibatalkan. Diuji `TrafficNeverDrivesThroughItself` (pasar, bundaran, tol; 3 x 90 detik).
+- **Lampu merah** di simpang jalan raya dalam kota: satu tiang per lengan, bergiliran hijau 9 detik dan kuning 2 detik, dipatuhi lalu lintas (`TrafficStopsAtARedLight`). Lampu yang menyala digambar game, jadi warnanya benar-benar berganti.
+- **Warga jalanan baru** (permintaan): pedagang kaki lima berpikulan, polisi, PNS, badut, pengamen, anak punk, masing-masing dengan jam keluarnya. **Hewan**: merpati (burung baru, terbang saat didekati lalu hinggap lagi), monyet di Kebun Raya, ayam di kampung. **Properti**: lampu merah, tiang CCTV, spanduk dan light box toko dengan tulisan sungguhan, videotron dengan empat iklan bergantian. 12 model Blender baru (`assets/blender/street.py`, `characters.py`, `animals.py`).
+- **Perbaikan gambar** (laporan): potret Masjid Raya ternyata tertimpa potret lama yang menghadap gedung lain (perhentian ganda di tur; dihapus). Kokpit kini punya lantai, pintu, kursi, konsol, dan dinding kaki, sehingga jalan tidak terlihat dari dalam. Lembar kabut tidak lagi memotong jalan setinggi pinggang: lembar hanya ada di atas kepala, di bawah kabutnya merata. Potret malam kini menghadap bulan.
+- **Animasi gerakan pemain** (permintaan): `rig_bones.py` kini menulis sepuluh klip. Yang baru: lompat, berenang, mengapung, memancing, badminton, bernyanyi. `EntityRenderer.AnimateRig` memudarkan satu "gerakan" di atas klip jalan: lompat digeser menurut kecepatan naik-turun (`Player.VerticalSpeed`), berenang saat bergerak di air, mengapung saat diam, dan tiga sisanya saat mini game-nya berjalan. Kedelapan `<nama>_rig.glb` dibangun ulang.
+- **Hewan air** (permintaan): ikan mas, kura-kura, bebek, dan buaya (`assets/blender/water.py`). Setiap kolam berisi ikan, kura-kura, dan bebek; di Ciliwung dan Cisadane ada wilayah tiap 400 m berisi ikan dan bergantian buaya, kura-kura, atau bebek. Mereka hanya bergerak di air yang cukup dalam (`Population.Swimmable`), menjauh bila didekati, dan tidak pernah naik ke darat (`WaterAnimalsLiveInTheWaterAndStayThere`, `FishAndCrocodilesKeepAwayFromASwimmer`). Buaya tidak menyerang siapa pun, sesuai nada game.
+- **Tumbuhan air** (permintaan): teratai dan eceng gondok mengapung (`Prop.Afloat` menggambar di permukaan air), gelagah berdiri di air dangkal. Ditaruh `PlaceWaterPlants` di ketiga kolam dan sepanjang kedua sungai, tanpa tabrakan (`PondsAndRiversHaveWaterPlants`).
+- Tindak lanjut catatan sesi 9: game memakai `ThreeNet` dan `ThreeNet.Native` 0.12.2 dari nuget.org (paket lokal dan `nuget.config` dihapus); pola garis pantulan SSR hilang (`SsrThickness` 1 m, lebih besar dari langkah penelusuran); awan terlihat di malam hari (cahaya bulan dan pendar kota).
+
+### Performa (Intel UHD 620, 1280 x 720, hujan deras)
+
+| Kualitas | fps | ms/frame | Resolusi render | Draw call | Segitiga |
+| --- | --- | --- | --- | --- | --- |
+| Hemat | 53,4 | 18,7 | 704 x 396 | 126 | 225 rb |
+| Sedang | 29,0 | 34,5 | 691 x 389 | 265 | 392 rb |
+| Tinggi | 19,6 | 51,0 | 768 x 432 | 352 | 491 rb |
+
+Diukur setelah semua perubahan sesi ini. Pengukuran sebelum animasi dan kehidupan air ditambahkan (sesi yang sama) adalah 58,3 / 29,9 / 21,0 fps, dengan Hemat di resolusi render lebih rendah (576 x 324). Saya tidak mengulang pengukuran untuk memisahkan mana yang selisih antar-jalan dan mana yang biaya hewan dan tumbuhan air, jadi anggap ada penurunan sampai 5 fps di Hemat yang belum dijelaskan.
+
+### Catatan jujur
+
+- **Belum dimainkan manusia.** Lalu lintas, lampu merah, dan burung diverifikasi lewat tes dan tangkapan layar diam; rasa geraknya (menyalip, antre, kepakan sayap) belum pernah saya lihat bergerak.
+- Lalu lintas: kemacetan yang tidak bisa terurai (dua becak berhadapan di gang) dibereskan dengan menghilangkan kendaraan yang menunggu lebih dari 10 detik di luar 45 m dari pemain, dan lebih dari 30 detik di mana pun. Menyalip hanya terjadi di ruas yang sama; kendaraan yang mulai menyalip lalu bertemu lawan akan berhenti berhadapan sampai yang disalip pergi.
+- Kendaraan yang sudah melewati garis saat lampu berganti tetap jalan, dan kendaraan dari ruas pendek tanpa tiang lampu masuk simpang tanpa giliran. Pejalan kaki dan pemain tidak terikat lampu. Lampu di setiap simpang bergiliran per lengan (bukan per arah berlawanan seperti lampu sungguhan).
+- Warga jalanan baru hanya berjalan dan berdiri: pengamen tidak bernyanyi, polisi tidak mengatur, PKL tidak berjualan. Merpati terbang lurus setinggi 7-11 m dan bisa menembus gedung tinggi. Burung dan warga baru adalah model balok Blender, bukan Rodin.
+- Semua videotron menampilkan iklan yang sama pada saat yang sama. Nama toko dan isi spanduk adalah karangan. Spanduk tidak punya tabrakan (bisa ditembus).
+- Di dalam kokpit, garis hujan masih terlihat jatuh di dalam kabin.
+- Puncak Pass dan Telaga Warna yang asli berada di luar peta; keduanya ditempatkan di Cisarua. Simpang susun tol digambar sebidang. Belum ada kereta di rel selatan. Tiang Lawang Suryakencana tidak punya tabrakan. Lalu lintas dan pejalan kaki bisa masuk Sirkuit Sentul. Mal, terminal, dan stasiun masih balok bergaya. Model bangunan khas dibuat dari ingatan bentuk umumnya, bukan dari foto atau denah. Di luar empat kawasan (pusat kota, Dramaga, Sentul, Cisarua) hanya ada jalan utama.
+- Animasi: klip dibuat dari rumus sudut sendi, bukan dari gerakan orang sungguhan, dan saya hanya melihatnya sebagai potret diam (lompat, berenang, mengapung, memancing, karaoke); badminton tidak dipotret sama sekali. Tidak ada joran, raket, atau mikrofon di tangan. Hanya pemain yang punya gerakan ini; warga masih diayun kode.
+- Hewan air: ikan berenang tepat di permukaan supaya terlihat (air game ini hampir buram), jadi sirip punggungnya menyembul. Buaya di Ciliwung adalah karangan (di Bogor asli tidak ada). Hewan air tidak menghindari satu sama lain dan bisa saling tembus; bebek tidak pernah naik ke tepi; ikan yang terlihat tidak ada hubungannya dengan hasil mini game memancing. Di potret, hewan air terlihat kecil karena mereka menjaga jarak.
+- Tumbuhan air tidak bergoyang, bisa ditembus, dan teratai memakai daun segi sembilan yang tampak bersudut dari dekat. Jumlahnya di sungai acak, tidak mengikuti arus atau kedalaman selain batas dangkal untuk gelagah.
+- Belum dikerjakan dari catatan sesi 9: rig tulang untuk warga dan 7 NPC berpose A, baju Mumu yang meregang, bola sendi polos pada batik, bayangan awan. Perubahan `ThreeNetView.cs` di checkout Three.Net masih belum di-commit.
+- Atas permintaan: model resolusi tinggi dan uji main manusia tetap ditunda.
+
 ## 2026-11-13 — Tepi air halus, rig tulang, bahu, awan ray marching (sesi 9)
 
 Diverifikasi dengan 76 tes Core (lulus), 19 tes efek Three.Net (lulus), tur `--capture` penuh, dan `--bench`. **Belum ada yang di-commit**, di kedua repo.

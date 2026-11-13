@@ -17,7 +17,10 @@ public enum CorridorKind
 /// </summary>
 public sealed class Corridor
 {
+    private const float Cell = 128f;
     private readonly float[] _cumulative;
+    // Which segments come within a cell's width of each cell: a long river has thousands.
+    private readonly Dictionary<long, List<int>> _grid = [];
 
     internal Corridor(CorridorKind kind, string nameKey, Vector2[] points, float[] levels, float halfWidth, float blend)
     {
@@ -31,6 +34,21 @@ public sealed class Corridor
         for (int i = 1; i < points.Length; i++)
         {
             _cumulative[i] = _cumulative[i - 1] + Vector2.Distance(points[i - 1], points[i]);
+            Vector2 min = Vector2.Min(points[i - 1], points[i]) - new Vector2(Cell);
+            Vector2 max = Vector2.Max(points[i - 1], points[i]) + new Vector2(Cell);
+            for (int z = (int)MathF.Floor(min.Y / Cell); z <= (int)MathF.Floor(max.Y / Cell); z++)
+            {
+                for (int x = (int)MathF.Floor(min.X / Cell); x <= (int)MathF.Floor(max.X / Cell); x++)
+                {
+                    long key = ((long)x << 32) ^ (uint)z;
+                    if (!_grid.TryGetValue(key, out List<int>? bucket))
+                    {
+                        _grid[key] = bucket = [];
+                    }
+
+                    bucket.Add(i - 1);
+                }
+            }
         }
     }
 
@@ -83,8 +101,18 @@ public sealed class Corridor
         int found = -1;
         float foundT = 0f;
         Vector2 foundPoint = default;
-        for (int i = 0; i < Points.Length - 1; i++)
+        List<int>? near = null;
+        if (maxDistance <= Cell
+            && !_grid.TryGetValue(((long)(int)MathF.Floor(p.X / Cell) << 32) ^ (uint)(int)MathF.Floor(p.Y / Cell), out near))
         {
+            lateral = along = level = 0f;
+            return false;
+        }
+
+        int count = near?.Count ?? Points.Length - 1;
+        for (int k = 0; k < count; k++)
+        {
+            int i = near is null ? k : near[k];
             float t = MathUtil.ClosestOnSegment(Points[i], Points[i + 1], p, out Vector2 closest);
             float d2 = Vector2.DistanceSquared(p, closest);
             if (d2 < best)
@@ -140,5 +168,44 @@ public enum SlabLook
 /// <param name="Solid">True for walls and furniture: people and vehicles cannot pass through.</param>
 public readonly record struct Slab(Vector2 Center, float HalfWidth, float HalfDepth, float Yaw, float Bottom, float Top, SlabLook Look, bool Solid = false);
 
+/// <summary>What a piece of lettering is painted on.</summary>
+public enum SignLook
+{
+    /// <summary>The green name board of a building.</summary>
+    Board,
+
+    /// <summary>A cloth banner at the roadside.</summary>
+    Banner,
+
+    /// <summary>The lit face of a shop's light box.</summary>
+    LightBox,
+}
+
 /// <summary>A name board on a building: centre position, height of its centre, the way it faces, and its width.</summary>
-public readonly record struct Sign(Vector2 Position, float Height, float Yaw, float Width, string NameKey);
+public readonly record struct Sign(Vector2 Position, float Height, float Yaw, float Width, string NameKey, SignLook Look = SignLook.Board);
+
+public enum SignalColour
+{
+    Red,
+    Yellow,
+    Green,
+}
+
+/// <summary>
+/// A traffic light: it stands at the left kerb of <see cref="Edge"/> and speaks to the drivers
+/// arriving at <see cref="Node"/> along it. The arms of a junction take turns, <see cref="Slot"/> of <see cref="Slots"/>.
+/// </summary>
+public readonly record struct TrafficSignal(Vector2 Position, float Yaw, int Node, int Edge, int Slot, int Slots)
+{
+    public const float GreenSeconds = 9f;
+    public const float YellowSeconds = 2f;
+
+    /// <summary>The colour shown at a time on the traffic clock (<c>Population.SignalTime</c>).</summary>
+    public SignalColour ColourAt(double time)
+    {
+        const float turn = GreenSeconds + YellowSeconds;
+        // Every junction starts its round at a moment of its own, so the town does not change in step.
+        float since = (float)((time + (Node * 3.7)) % (Slots * turn)) - (Slot * turn);
+        return since < 0f || since >= turn ? SignalColour.Red : since < GreenSeconds ? SignalColour.Green : SignalColour.Yellow;
+    }
+}

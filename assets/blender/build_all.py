@@ -12,7 +12,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-MODULES = ["vehicles", "characters", "animals", "props"]
+MODULES = ["vehicles", "characters", "animals", "props", "landmarks", "street", "water"]
 
 PREVIEWS = [
     (["vehicle"], "assets-vehicles.png", (0.6, -1.0, 0.55)),

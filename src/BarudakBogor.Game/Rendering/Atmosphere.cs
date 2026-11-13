@@ -173,8 +173,12 @@ public sealed class Atmosphere
                     Density = MathUtil.Lerp(0.011f, 0.03f, clouds),
                     Thickness = MathUtil.Lerp(420f, 700f, clouds),
                     FeatureSize = 900f,
-                    SunColor = sunColor * MathUtil.Lerp(0.16f, 1.7f, daylight) * (1f - (0.55f * clouds)),
-                    AmbientColor = Vector3.Lerp(skyTint * MathUtil.Lerp(0.08f, 0.6f, daylight) * (1f - (0.45f * clouds)), fogColor, MathUtil.Saturate(Fog * 1.6f)),
+                    // At night the moon rims the deck and the glow of the town lifts its underside,
+                    // or the clouds would be black on black.
+                    SunColor = ((sunColor * MathUtil.Lerp(0.16f, 1.7f, daylight)) + (new Vector3(0.3f, 0.36f, 0.5f) * (1f - daylight))) * (1f - (0.55f * clouds)),
+                    AmbientColor = Vector3.Lerp(
+                        ((skyTint * MathUtil.Lerp(0.08f, 0.6f, daylight)) + (new Vector3(0.075f, 0.07f, 0.085f) * (1f - daylight))) * (1f - (0.45f * clouds)),
+                        fogColor, MathUtil.Saturate(Fog * 1.6f)),
                     Steps = 12,
                     Haze = 0.3f,
                 };
@@ -182,17 +186,19 @@ public sealed class Atmosphere
             }
         }
 
-        // Mist sheets: at fixed world heights 9 m apart, the four nearest to eye level.
+        // Mist sheets: at fixed world heights 9 m apart, the four next ones overhead. Never one at
+        // or below eye level: a flat sheet that cuts through the street reads as fog that only
+        // reaches the waist. Down here the fog is the even haze of the environment.
         float amount = MathUtil.Saturate((Fog - 0.12f) * 1.6f) + (session.Weather.Mist * 0.5f);
         bool misty = Volumes && amount > 0.03f;
         _fogSheets.Visible = misty;
         if (misty)
         {
             const float spacing = 9f;
-            float lowest = (MathF.Floor(cameraPosition.Y / spacing) - 1f) * spacing;
+            float lowest = (MathF.Floor((cameraPosition.Y + 4f) / spacing) + 1f) * spacing;
             for (int i = 0; i < FogLayers; i++)
             {
-                float height = lowest + (i * spacing) + 3f;
+                float height = lowest + (i * spacing);
                 // Each bank slides its own way, slowly.
                 float slide = (float)session.Time * (0.6f + (i * 0.35f));
                 _fogMatrices[i] = Matrix4x4.CreateScale(520f, 1f, 520f) * Matrix4x4.CreateRotationY(i * 1.3f)

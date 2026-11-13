@@ -262,6 +262,27 @@ public partial class MainWindow
             }));
         }
 
+        _shots.Enqueue(new Shot("lompat", 0.42f, () =>
+        {
+            // A running jump, caught near the top.
+            _scriptedInput = new InputState { Move = new Vector2(0f, 1f), CameraYaw = 0.6f, Run = true, Jump = true };
+        }));
+        _shots.Enqueue(new Shot("berenang", 3f, () =>
+        {
+            // Across the fishing pond at Empang.
+            GameSession s = _session!;
+            Scene(9f, WeatherKind.Cerah);
+            Pond pond = s.Map.Ponds[0];
+            Vector2 across = Vector2.Normalize(pond.Center - s.Map[PoiId.Empang].Position);
+            float heading = MathUtil.YawOf(across);
+            s.Player.Teleport(s.Map, pond.Center - (across * pond.Radius * 0.55f), heading);
+            Relocate(s);
+            _camera!.Yaw = heading + 1.9f;
+            _camera.Pitch = 0.3f;
+            _scriptedInput = new InputState { Move = new Vector2(0f, 1f), CameraYaw = heading };
+        }));
+        _shots.Enqueue(new Shot("mengapung", 1.6f, () => _scriptedInput = null));
+
         _shots.Enqueue(new Shot("naik-motor", 1.5f, () =>
         {
             GameSession s = _session!;
@@ -308,6 +329,170 @@ public partial class MainWindow
         Visit("botani-square", PoiId.BotaniSquare, 13f, WeatherKind.Cerah);
         Visit("suryakencana", PoiId.SuryaKencana, 17.3f, WeatherKind.Berawan, 22f, 0.9f);
         Visit("air-mancur", PoiId.AirMancur, 16f, WeatherKind.Cerah, 10f);
+        Visit("katedral", PoiId.Katedral, 10f, WeatherKind.Cerah, 9f, 0.2f, -0.3f);
+        _shots.Enqueue(new Shot("lawang-suryakencana", 6f, () =>
+        {
+            // The gate of the old Chinese quarter, from the middle of the street it spans.
+            GameSession s = _session!;
+            Scene(16.5f, WeatherKind.Cerah);
+            Poi gate = s.Map[PoiId.SuryaKencana];
+            Vector2 along = MathUtil.Forward(gate.Yaw + (MathF.PI * 0.5f));
+            s.Player.Teleport(s.Map, gate.RoadPoint - (along * 24f), MathUtil.YawOf(along));
+            Relocate(s);
+            _camera!.Yaw = MathUtil.YawOf(along);
+            _camera.Pitch = -0.08f;
+        }));
+        Visit("masjid-raya", PoiId.MasjidRaya, 15.5f, WeatherKind.Cerah, 34f, 0.3f, -0.1f);
+        Visit("balai-kota", PoiId.BalaiKota, 9.5f, WeatherKind.Cerah, 26f, 0.3f, 0f);
+
+        // Street life. These let the town fill up first, then walk up to their subject.
+        void Settle(float seconds)
+        {
+            for (float t = 0f; t < seconds; t += 0.05f)
+            {
+                _session!.Update(0.05f, default);
+            }
+        }
+
+        void Face(Vector2 subject, float distance, Vector2 from, float pitch, float turn = 0f)
+        {
+            GameSession s = _session!;
+            Vector2 at = s.Map.ResolveCircle(subject + (from * distance), 0.5f, out _);
+            float yaw = MathUtil.YawOf(subject - at);
+            s.Player.Teleport(s.Map, at, yaw);
+            _world!.LoadNow(at);
+            _camera!.Snap(s);
+            _camera.Yaw = yaw + turn;
+            _camera.Pitch = pitch;
+        }
+
+        void Admire(string name, string model, PoiId near, float hours, float distance, float pitch, float turn = 0f)
+        {
+            _shots.Enqueue(new Shot(name, 5f, () =>
+            {
+                GameSession s = _session!;
+                _camera!.View = Rendering.CameraView.Chase;
+                Scene(hours, WeatherKind.Cerah);
+                Prop prop = s.Map.Props.Where(p => p.Model == model).OrderBy(p => Vector2.Distance(p.Position, s.Map[near].Position)).First();
+                Vector2 front = MathUtil.Forward(prop.Yaw);
+                s.Player.Teleport(s.Map, s.Map.ResolveCircle(prop.Position + (front * distance), 0.5f, out _), MathUtil.YawOf(-front));
+                Relocate(s);
+                _camera!.Yaw = MathUtil.YawOf(-front) + turn;
+                _camera.Pitch = pitch;
+            }));
+        }
+
+        _shots.Enqueue(new Shot("lampu-merah", 9f, () =>
+        {
+            // On the kerb behind the queue, looking past the post into the junction.
+            GameSession s = _session!;
+            Scene(17.2f, WeatherKind.Cerah);
+            Vector2 centre = s.Map[PoiId.TuguKujang].Position;
+            TrafficSignal light = s.Map.Signals.OrderBy(x => Vector2.Distance(x.Position, centre)).First();
+            Vector2 travel = -MathUtil.Forward(light.Yaw);
+            Vector2 at = light.Position - (travel * 20f) + (MathUtil.Left(travel) * 1.5f);
+            s.Player.Teleport(s.Map, s.Map.ResolveCircle(at, 0.5f, out _), MathUtil.YawOf(travel));
+            Relocate(s);
+            _camera!.Yaw = MathUtil.YawOf(travel) - 0.12f;
+            _camera.Pitch = 0.02f;
+        }));
+        Animal? pigeon = null;
+        _shots.Enqueue(new Shot("burung", 1.2f, () =>
+        {
+            GameSession s = _session!;
+            Scene(8.5f, WeatherKind.Cerah);
+            s.Player.Teleport(s.Map, s.Map.ResolveCircle(s.Map[PoiId.AlunAlun].Position + new Vector2(62f, 0f), 0.5f, out _), 0f);
+            Relocate(s);
+            Settle(3f);
+            pigeon = s.Population.Animals.Where(a => a.Kind == AnimalKind.Burung && !a.Airborne)
+                .OrderBy(a => Vector2.Distance(a.Position.Xz(), s.Player.Ground)).FirstOrDefault();
+            if (pigeon is not null)
+            {
+                Face(pigeon.Position.Xz(), 6.5f, Vector2.Normalize(s.Player.Ground - pigeon.Position.Xz()), 0.12f, 0.2f);
+            }
+        }));
+        _shots.Enqueue(new Shot("burung-terbang", 0.9f, () =>
+        {
+            // Two steps closer and it is off.
+            if (pigeon is not null)
+            {
+                GameSession s = _session!;
+                Face(pigeon.Position.Xz(), 3.5f, Vector2.Normalize(s.Player.Ground - pigeon.Position.Xz()), -0.08f, 0.2f);
+            }
+        }));
+        foreach ((string name, NpcKind kind, bool first) in (ReadOnlySpan<(string, NpcKind, bool)>)[("warga-polisi", NpcKind.Polisi, true),
+            ("warga-badut", NpcKind.Badut, false), ("warga-pengamen", NpcKind.Pengamen, false), ("warga-punk", NpcKind.AnakPunk, false),
+            ("warga-pkl", NpcKind.Pkl, false), ("warga-pns", NpcKind.Pns, false)])
+        {
+            _shots.Enqueue(new Shot(name, 0.6f, () =>
+            {
+                GameSession s = _session!;
+                if (first)
+                {
+                    Scene(16.5f, WeatherKind.Cerah);
+                    Stand(PoiId.TuguKujang, default, 0f, 0f);
+                    Settle(14f);
+                }
+
+                if (s.Population.Pedestrians.Where(p => p.Kind == kind).OrderBy(p => Vector2.Distance(p.Position.Xz(), s.Player.Ground)).FirstOrDefault() is { } who)
+                {
+                    Face(who.Position.Xz(), 3.6f, MathUtil.Forward(who.Yaw + 0.5f), 0.1f, 0.42f);
+                }
+            }));
+        }
+
+        Admire("spanduk", "spanduk", PoiId.PasarAnyar, 10f, 9f, 0.04f, 0.3f);
+        Admire("cctv", "cctv", PoiId.PasarAnyar, 9f, 9f, -0.22f, 0.25f);
+        Admire("videotron", "videotron", PoiId.TuguKujang, 18.3f, 24f, -0.2f, 0.12f);
+        Admire("light-box", "light_box", PoiId.SuryaKencana, 19.2f, 7f, -0.12f, 0.3f);
+        // Life in the water: who lives in the fishing pond, and the crocodile of the Ciliwung.
+        void Spot(string name, AnimalKind kind, Func<GameSession, Vector2> where, float distance, float pitch)
+        {
+            _shots.Enqueue(new Shot(name, 0.4f, () =>
+            {
+                // Through the character's own eyes, or all one sees is the back of a head.
+                GameSession s = _session!;
+                _camera!.View = Rendering.CameraView.Cockpit;
+                Scene(9.5f, WeatherKind.Cerah);
+                s.Player.Teleport(s.Map, where(s), 0f);
+                Relocate(s);
+                Settle(4f);
+                Animal? animal = s.Population.Animals.Where(a => a.Kind == kind)
+                    .OrderBy(a => Vector2.Distance(a.Position.Xz(), s.Player.Ground)).FirstOrDefault();
+                if (animal is not null)
+                {
+                    Vector2 from = s.Player.Ground - animal.Position.Xz();
+                    Face(animal.Position.Xz(), distance, from.LengthSquared() > 0.01f ? Vector2.Normalize(from) : Vector2.UnitX, pitch);
+                }
+            }));
+        }
+
+        Vector2 Bank(GameSession s) => s.Map[PoiId.Empang].Position;
+        Vector2 CrocodileReach(GameSession s)
+        {
+            // Every fourth home range of the river has a crocodile; take the one nearest the Gardens.
+            Corridor river = s.Map.Terrain.Corridors.First(c => c.Kind == CorridorKind.River);
+            Vector2 gate = s.Map[PoiId.GerbangKebunRaya].Position;
+            Vector2 best = river.Sample(150f, out _, out _);
+            for (float along = 150f; along < river.Length - 150f; along += 1_600f)
+            {
+                Vector2 centre = river.Sample(along, out _, out _);
+                if (Vector2.Distance(centre, gate) < Vector2.Distance(best, gate))
+                {
+                    best = centre;
+                }
+            }
+
+            return best + new Vector2(24f, 0f);
+        }
+
+        Spot("ikan", AnimalKind.Ikan, Bank, 4.5f, 0.3f);
+        Spot("kura-kura", AnimalKind.KuraKura, Bank, 3.4f, 0.3f);
+        Spot("bebek", AnimalKind.Bebek, Bank, 5.4f, 0.12f);
+        Spot("buaya", AnimalKind.Buaya, CrocodileReach, 8.6f, 0.2f);
+        Admire("teratai", "teratai", PoiId.Empang, 9.5f, 5.5f, 0.3f, 0.2f);
+        Admire("gelagah", "gelagah", PoiId.Empang, 9.5f, 6f, 0.12f, 0.2f);
+        Visit("museum-zoologi", PoiId.MuseumZoologi, 14f, WeatherKind.Cerah, 22f, 0.3f, 0f);
         _shots.Enqueue(new Shot("interior-warung", 5f, () =>
         {
             // Inside the bandrek stall, through the character's own eyes.
@@ -322,8 +507,6 @@ public partial class MainWindow
             _camera.Pitch = 0.12f;
         }));
         _shots.Enqueue(new Shot("interior-tutup", 0.2f, () => _camera!.View = Rendering.CameraView.Chase));
-        Visit("museum-zoologi", PoiId.MuseumZoologi, 10f, WeatherKind.Cerah, 20f, 0.3f);
-        Visit("masjid-raya", PoiId.MasjidRaya, 16.5f, WeatherKind.Berawan, 26f, 0.3f, 0f);
         _shots.Enqueue(new Shot("genangan", 7f, () =>
         {
             // After the rain: puddles on Pajajaran, with the sky in them.
@@ -380,6 +563,64 @@ public partial class MainWindow
             _camera!.Yaw = MathUtil.YawOf(-MathUtil.Left(flow)) + 0.7f;
             _camera.Pitch = 0.3f;
         }));
+        // The country round the city, which follows the real map as well.
+        void Look(string name, float hour, Func<GameSession, (Vector2 At, float Yaw)> where, float pitch = 0.2f)
+        {
+            _shots.Enqueue(new Shot(name, 6f, () =>
+            {
+                GameSession s = _session!;
+                Scene(hour, WeatherKind.Cerah);
+                (Vector2 at, float yaw) = where(s);
+                s.Player.Teleport(s.Map, at, yaw);
+                Relocate(s);
+                _camera!.Yaw = yaw;
+                _camera.Pitch = pitch;
+            }));
+        }
+
+        (Vector2, float) OnRoad(GameSession s, string road, Vector2 near)
+        {
+            RoadHit hit = s.Map.Roads.Nearest(near, 4_000f, e => e.NameKey == road)!.Value;
+            return (hit.Point + (MathUtil.Left(hit.Direction) * ((hit.Edge.Width * 0.5f) - 0.6f)), MathUtil.YawOf(hit.Direction));
+        }
+
+        (Vector2, float) OnBank(GameSession s, string river, Vector2 near, float downstream)
+        {
+            Corridor water = s.Map.Corridors.First(c => c.NameKey == river);
+            water.Closest(near, 5_000f, out _, out float along, out _);
+            Vector2 mid = water.Sample(along + downstream, out Vector2 flow, out _);
+            return (mid + (MathUtil.Left(flow) * (water.HalfWidth + 7f)), MathUtil.YawOf(-MathUtil.Left(flow)) + 0.8f);
+        }
+
+        Look("tol-jagorawi", 9.5f, s => OnRoad(s, "road.jagorawi", new Vector2(3_600f, -3_000f)), 0.16f);
+        Look("dramaga", 10.2f, s => OnRoad(s, "road.dramaga", s.Map[PoiId.TerminalDramaga].Position));
+        Look("kampus-ipb", 15.5f, s => (s.Map[PoiId.KampusIpb].RoadPoint, s.Map[PoiId.KampusIpb].Yaw + MathF.PI), 0.3f);
+        Look("situ-gede", 8.6f, s =>
+        {
+            Poi lake = s.Map[PoiId.SituGede];
+            Vector2 toWater = Vector2.Normalize(s.Map.Ponds[1].Center - lake.Position);
+            return (lake.Position - (toWater * 4f), MathUtil.YawOf(toWater) + 0.2f);
+        }, 0.22f);
+        Look("sirkuit-sentul", 11f, s => OnRoad(s, "road.sirkuit", s.Map[PoiId.SirkuitSentul].Position), 0.28f);
+        Look("cisadane", 9f, s => OnBank(s, "river.cisadane", new Vector2(-1_700f, 1_400f), 0f), 0.28f);
+        Look("paledang", 14f, s =>
+        {
+            Corridor line = s.Map.Corridors.First(c => c.NameKey == "rail.sukabumi");
+            Vector2 at = line.Sample(34f, out Vector2 heading, out _);
+            Vector2 side = MathUtil.Left(heading);
+            side = side.X > 0f ? side : -side;
+            return (at + (side * 6.6f) - (heading * 22f), MathUtil.YawOf(heading) + 0.25f);
+        }, 0.2f);
+        Look("jembatan-kereta", 10f, s =>
+        {
+            Corridor line = s.Map.Corridors.First(c => c.NameKey == "rail.sukabumi");
+            Bridge bridge = s.Map.Bridges.First(b => !s.Map.Roads.IsOnRoad(b.Path[b.Path.Length / 2]) && line.Closest(b.Path[b.Path.Length / 2], 3f, out _, out _, out _));
+            Vector2 along = Vector2.Normalize(bridge.Path[^1] - bridge.Path[0]);
+            Vector2 from = bridge.Path[0] - (along * 26f) + (MathUtil.Left(along) * 16f);
+            return (from, MathUtil.YawOf(bridge.Path[bridge.Path.Length / 2] - from));
+        }, 0.25f);
+        Look("cisarua", 7.6f, s => OnRoad(s, "road.puncak", s.Map[PoiId.PuncakPass].Position), 0.18f);
+        Look("jalan-raya-puncak", 16.5f, s => OnRoad(s, "road.puncak", new Vector2(13_800f, 8_700f)), 0.16f);
         _shots.Enqueue(new Shot("mancing", 0.5f, () =>
         {
             GameSession s = _session!;
@@ -417,10 +658,12 @@ public partial class MainWindow
             GameSession s = _session!;
             s.Update(0.02f, new InputState { Cancel = true });
             ClearToasts();
-            Scene(22.5f, WeatherKind.Cerah);
+            Scene(20f, WeatherKind.Cerah);
             Poi monument = s.Map[PoiId.TuguKujang];
             Vector2 away = Vector2.Normalize(monument.RoadPoint - monument.Position);
-            Stand(PoiId.TuguKujang, away * 14f, MathUtil.YawOf(-away), MathUtil.YawOf(-away), -0.2f);
+            // Early in the night the moon is still low in the east: look that way.
+            float toMoon = MathUtil.YawOf(new Vector2(0.87f, -0.35f));
+            Stand(PoiId.TuguKujang, away * 14f, toMoon, toMoon, -0.3f);
         }));
         _shots.Enqueue(new Shot("kabut-puncak", 6f, () =>
         {

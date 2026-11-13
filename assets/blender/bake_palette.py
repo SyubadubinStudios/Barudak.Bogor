@@ -22,8 +22,8 @@ GRID = 8          # swatches per side
 SWATCH = 8        # pixels per swatch
 SIZE = GRID * SWATCH
 
-# The game swaps a poster onto the blank face of the billboard, which must stay its own primitive.
-KEEP = {"papan_reklame"}
+# The game swaps a picture onto the blank face of the billboard and of the LED screen, which must stay its own primitive.
+KEEP = {"papan_reklame", "videotron"}
 
 
 def linear_to_srgb(c):

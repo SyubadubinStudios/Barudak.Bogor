@@ -11,8 +11,8 @@ namespace BarudakBogor.World;
 internal static class WorldGenerator
 {
     // Positions are real: metres east (+X) and south (+Z) of Tugu Kujang, taken from
-    // OpenStreetMap (© OpenStreetMap contributors, ODbL). The main roads, the river and the
-    // railway follow their true lines; the side streets between them are generated.
+    // OpenStreetMap (© OpenStreetMap contributors, ODbL). The roads, the rivers and the
+    // railways follow their true lines.
     private static readonly Vector2 ParkCenter = new(-600f, -380f);
     private const float ParkRadius = 520f;
     private const float RiverHalfWidth = 13f;
@@ -62,6 +62,59 @@ internal static class WorldGenerator
         new(22f, -5512f), new(-351f, -5669f), new(-440f, -6059f), new(-295f, -6448f), new(-526f, -6681f), new(-249f, -6937f), new(-117f, -7210f), new(-23f, -7661f),
         new(-115f, -7956f), new(220f, -8113f), new(242f, -8348f), new(-125f, -8507f), new(-115f, -8988f), new(-281f, -9120f), new(-85f, -9402f),
     ];
+
+    /// <summary>The Cisadane from the foot of Gunung Salak, past Empang and Dramaga, to the north-west corner of the map.</summary>
+    private static readonly Vector2[] CisadanePoints =
+    [
+        new(1088f, 14262f), new(1132f, 14131f), new(1263f, 14087f), new(1255f, 13990f), new(1106f, 13989f), new(898f, 13561f), new(1055f, 13487f), new(1258f, 13507f),
+        new(1322f, 13421f), new(1126f, 13123f), new(920f, 12976f), new(1109f, 12393f), new(1343f, 12345f), new(1571f, 11927f), new(1484f, 11747f), new(1517f, 11571f),
+        new(1189f, 11150f), new(1369f, 11068f), new(1292f, 10883f), new(1564f, 10662f), new(1633f, 10374f), new(1518f, 10326f), new(1401f, 10049f), new(1506f, 9962f),
+        new(1542f, 9471f), new(1740f, 9102f), new(1502f, 8839f), new(1532f, 8661f), new(1413f, 8494f), new(1602f, 8149f), new(1490f, 7177f), new(1265f, 7124f),
+        new(1267f, 6847f), new(1163f, 6609f), new(939f, 6507f), new(862f, 6361f), new(397f, 6019f), new(360f, 5669f), new(600f, 5307f), new(598f, 4982f),
+        new(749f, 4770f), new(527f, 4380f), new(604f, 4041f), new(442f, 3883f), new(806f, 3777f), new(737f, 3665f), new(490f, 3556f), new(542f, 3331f), new(468f, 3167f),
+        new(488f, 2778f), new(168f, 2779f), new(215f, 2444f), new(-117f, 2371f), new(-205f, 2017f), new(-383f, 2028f), new(-509f, 1860f), new(-718f, 1939f),
+        new(-702f, 1564f), new(-1130f, 1336f), new(-1153f, 1050f), new(-1395f, 649f), new(-1383f, 307f), new(-1589f, 332f), new(-1473f, 86f), new(-1860f, -60f),
+        new(-1899f, -160f), new(-1815f, -235f), new(-1895f, -344f), new(-2120f, -358f), new(-2292f, -227f), new(-2476f, -301f), new(-2410f, -579f), new(-2464f, -697f),
+        new(-2247f, -939f), new(-2246f, -1027f), new(-2388f, -1042f), new(-2624f, -938f), new(-2693f, -987f), new(-2793f, -1264f), new(-2655f, -1475f),
+        new(-2838f, -1454f), new(-2910f, -1553f), new(-3265f, -1676f), new(-3214f, -2101f), new(-3297f, -2170f), new(-3749f, -2154f), new(-3873f, -2280f),
+        new(-3950f, -2732f), new(-4196f, -2666f), new(-4492f, -2853f), new(-4406f, -3025f), new(-4453f, -3149f), new(-4840f, -3444f), new(-4857f, -3694f),
+        new(-5190f, -4054f), new(-5029f, -4342f), new(-5331f, -4691f), new(-5253f, -4870f), new(-4980f, -5002f), new(-4934f, -5088f), new(-5201f, -5530f),
+        new(-5438f, -5504f), new(-5551f, -5867f), new(-5624f, -5849f), new(-5762f, -5571f), new(-5940f, -5606f), new(-6128f, -6007f), new(-6205f, -5913f),
+        new(-6308f, -5933f), new(-6265f, -6106f), new(-6417f, -6228f), new(-6439f, -6387f), new(-6745f, -6368f), new(-7129f, -6529f), new(-7023f, -6790f),
+        new(-7150f, -6839f), new(-7365f, -6820f), new(-7464f, -6564f), new(-7593f, -6509f), new(-7751f, -6765f), new(-7915f, -6729f), new(-7965f, -6606f),
+        new(-8160f, -6606f), new(-8197f, -6890f), new(-8389f, -6920f), new(-8693f, -6790f), new(-8960f, -6808f), new(-9081f, -6494f), new(-9323f, -6309f),
+        new(-9470f, -6335f), new(-9831f, -6222f), new(-9938f, -6288f), new(-10267f, -6252f), new(-10250f, -6546f), new(-10583f, -6486f), new(-10699f, -6649f),
+        new(-10932f, -6667f), new(-10943f, -6902f), new(-11662f, -6991f), new(-11735f, -7188f), new(-11981f, -7160f), new(-12062f, -7539f), new(-12253f, -7780f),
+        new(-12422f, -7802f), new(-12333f, -7941f), new(-12419f, -8128f), new(-12312f, -8288f), new(-12551f, -8469f), new(-12573f, -9037f), new(-12922f, -9489f),
+        new(-13372f, -9803f), new(-13834f, -9483f), new(-14014f, -9527f), new(-13874f, -10148f), new(-13751f, -10371f), new(-14544f, -10723f), new(-14763f, -11039f),
+        new(-14745f, -11180f), new(-14490f, -11494f), new(-14348f, -11879f), new(-14005f, -12157f), new(-14074f, -12314f), new(-14537f, -12595f), new(-14577f, -12769f),
+        new(-14511f, -13109f), new(-14595f, -13822f), new(-15179f, -14049f), new(-15138f, -14476f), new(-15238f, -14594f), new(-15833f, -14292f), new(-15763f, -14821f),
+        new(-15894f, -14841f), new(-16276f, -14626f), new(-16456f, -14642f), new(-16699f, -15149f), new(-16976f, -15416f), new(-16691f, -15843f), new(-16379f, -16055f),
+        new(-16448f, -16260f), new(-16321f, -16661f), new(-16384f, -16835f), new(-16334f, -17598f), new(-16465f, -17703f), new(-16854f, -17742f), new(-17085f, -17873f),
+        new(-17023f, -18180f), new(-17171f, -18532f), new(-17095f, -18945f), new(-16886f, -19300f),
+    ];
+
+    /// <summary>The line to Sukabumi: from Bogor Paledang south through Batutulis, Maseng and Cigombong.</summary>
+    private static readonly Vector2[] SouthRailPoints =
+    [
+        new(-1609f, -513f), new(-1592f, -409f), new(-1539f, -317f), new(-1351f, -177f), new(-1287f, -96f), new(-1115f, 421f), new(-932f, 574f), new(-890f, 637f),
+        new(-870f, 714f), new(-862f, 1061f), new(-732f, 1268f), new(-662f, 1466f), new(-564f, 1640f), new(-466f, 1758f), new(-312f, 1885f), new(-97f, 2004f),
+        new(-60f, 2060f), new(20f, 2288f), new(76f, 2340f), new(242f, 2410f), new(352f, 2619f), new(532f, 2742f), new(587f, 2824f), new(597f, 2914f), new(549f, 3132f),
+        new(607f, 3383f), new(677f, 3524f), new(828f, 3679f), new(856f, 3779f), new(815f, 3899f), new(648f, 4100f), new(605f, 4248f), new(609f, 4354f), new(780f, 4668f),
+        new(802f, 4777f), new(769f, 4869f), new(643f, 5045f), new(667f, 5301f), new(642f, 5400f), new(464f, 5584f), new(426f, 5647f), new(441f, 5916f), new(478f, 6005f),
+        new(622f, 6118f), new(722f, 6248f), new(889f, 6356f), new(1002f, 6489f), new(1203f, 6607f), new(1325f, 6875f), new(1391f, 7130f), new(1438f, 7428f),
+        new(1514f, 7631f), new(1499f, 7847f), new(1545f, 8141f), new(1521f, 8235f), new(1370f, 8442f), new(1357f, 8524f), new(1456f, 8840f), new(1608f, 9002f),
+        new(1646f, 9126f), new(1621f, 9215f), new(1509f, 9383f), new(1423f, 9880f), new(1338f, 10066f), new(1354f, 10138f), new(1530f, 10418f), new(1540f, 10527f),
+        new(1445f, 10719f), new(1204f, 10899f), new(975f, 11364f), new(990f, 11495f), new(1170f, 11747f), new(1184f, 11830f), new(1167f, 11899f), new(687f, 12469f),
+        new(596f, 12705f), new(390f, 12891f), new(318f, 13319f), new(288f, 13391f), new(206f, 13459f), new(-26f, 13544f), new(-101f, 13655f), new(-86f, 14323f),
+        new(-31f, 14420f), new(138f, 14519f), new(195f, 14592f), new(212f, 14662f), new(210f, 14910f), new(186f, 14974f), new(135f, 15032f), new(-257f, 15193f),
+        new(-334f, 15295f), new(-352f, 15422f), new(-325f, 15502f), new(-141f, 15624f), new(-66f, 15748f), new(-77f, 15831f), new(-167f, 16020f), new(-121f, 16198f),
+        new(-117f, 16290f), new(-147f, 16365f), new(-200f, 16420f), new(-420f, 16492f), new(-537f, 16594f), new(-579f, 16704f), new(-612f, 17102f), new(-602f, 17211f),
+        new(-567f, 17323f), new(-258f, 17917f), new(-235f, 18035f), new(-250f, 18134f), new(-326f, 18254f), new(-444f, 18318f), new(-1269f, 18437f), new(-1365f, 18480f),
+        new(-1415f, 18542f), new(-1437f, 18616f), new(-1462f, 19020f), new(-1632f, 19300f),
+    ];
+
+    private const float CisadaneHalfWidth = 15f;
 
     // The commuter line ends at Stasiun Bogor and runs north to Cilebut and on to Jakarta.
     private static readonly Vector2 Terminus = new(-1586f, -789f);
@@ -148,9 +201,10 @@ internal static class WorldGenerator
         District[] districts =
         [
             new(DistrictId.PusatKota, "district.pusatkota", new Vector2(-600f, -500f), 2_300f, LandUse.Kota),
-            new(DistrictId.Dramaga, "district.dramaga", new Vector2(-9_000f, 300f), 900f, LandUse.Kampus),
-            new(DistrictId.Sentul, "district.sentul", new Vector2(5_500f, -7_500f), 1_000f, LandUse.Modern),
-            new(DistrictId.Puncak, "district.puncak", new Vector2(12_800f, 10_800f), 1_100f, LandUse.Villa),
+            // The campus town, the circuit and the hill resort (Cisarua) at their real places.
+            new(DistrictId.Dramaga, "district.dramaga", new Vector2(-8_630f, -4_800f), 1_150f, LandUse.Kampus),
+            new(DistrictId.Sentul, "district.sentul", new Vector2(5_740f, -7_290f), 1_150f, LandUse.Modern),
+            new(DistrictId.Puncak, "district.puncak", new Vector2(16_000f, 8_900f), 1_300f, LandUse.Villa),
             new(DistrictId.KebunRaya, "district.kebunraya", ParkCenter, ParkRadius, LandUse.Taman),
             new(DistrictId.Empang, "district.empang", new Vector2(-1_250f, 900f), 400f, LandUse.Kampung),
             new(DistrictId.PasarAnyar, "district.pasaranyar", new Vector2(-1_380f, -1_090f), 300f, LandUse.Pasar),
@@ -161,8 +215,9 @@ internal static class WorldGenerator
         [
             // In a gap between the real streets of Empang, so no road runs through the water.
             new("pond.empang", new Vector2(-1_480f, 1_200f), 62f, 2.2f),
-            new("pond.situgede", new Vector2(-8_350f, -520f), 150f, 3f),
-            new("pond.telagawarna", new Vector2(13_650f, 11_650f), 90f, 4f),
+            new("pond.situgede", new Vector2(-6_290f, -5_400f), 125f, 3f),
+            // The real lake lies just past the eastern edge of the map; this one sits in a fold above Cisarua.
+            new("pond.telagawarna", new Vector2(16_540f, 7_930f), 90f, 4f),
         ];
 
         WorldMap map = new(seed, districts, ponds);
@@ -177,9 +232,14 @@ internal static class WorldGenerator
                 new(-1_289f, -2_002f), new(-1_354f, -2_644f), new(-1_295f, -2_930f), new(-1_099f, -3_222f), new(-607f, -3_555f), new(-471f, -3_694f),
                 new(-249f, -4_225f), new(-251f, -4_422f), new(-547f, -5_757f), new(-613f, -6_254f), new(-418f, -8_578f), new(-437f, -8_779f)],
             2.2f, 30f, 15);
+        map.Terrain.AddCorridor(CorridorKind.River, "river.cisadane", CisadanePoints, CisadaneHalfWidth, 50f, 10);
+        map.Terrain.AddCorridor(CorridorKind.Rail, "rail.sukabumi", SouthRailPoints, 2.2f, 30f, 15);
 
         BuildRoads(map, ref rng, out Dictionary<DistrictId, List<RoadNode>> grids, out List<RoadNode> ring);
         BuildCrossings(map);
+        // The ground and the bridges are final: from here on a road is something to stand on.
+        map.Roads.BuildSurfaces(map.Terrain);
+        map.Terrain.AttachRoads(map.Roads);
         PlacePois(map, ring);
         List<Building> landmarks = PlaceRealPlaces(map);
         BuildInteriors(map);
@@ -188,7 +248,11 @@ internal static class WorldGenerator
             landmarks.Add(hall);
         }
 
+        BuildPaledang(map);
+
         PlaceLandmarks(map, ring);
+        PlaceStreetLife(map);
+        PlaceWaterPlants(map);
         PlaceBuildings(map, ref rng);
         PlaceInfill(map, ref rng);
         // The named buildings go in last: their plots were reserved before the rest was built.
@@ -222,7 +286,6 @@ internal static class WorldGenerator
             }
         }
 
-        RoadNode RealNode(Vector2 near) => NearestOf(core, near);
         District gang = map.Districts.First(d => d.Id == DistrictId.GangSelot);
 
         // Gang Selot: a tight alley maze hanging off the city grid.
@@ -247,63 +310,8 @@ internal static class WorldGenerator
             roads.AddEdge(alleys[0], NearestOf(core, alleys[0].Position), RoadKind.Gang, "road.gangselot");
         }
 
-        gridMap[DistrictId.Dramaga] = BuildGrid(map, ref rng, map.Districts[1], 170f, 22f, RoadKind.Street, 3, 0.12f, _ => false, null);
-        gridMap[DistrictId.Sentul] = BuildGrid(map, ref rng, map.Districts[2], 220f, 12f, RoadKind.Street, 2, 0.05f, _ => false, null);
-        gridMap[DistrictId.Puncak] = BuildGrid(map, ref rng, map.Districts[3], 260f, 45f, RoadKind.Mountain, 0, 0.25f, _ => false, null);
-
-        RoadNode jalanBaru = roads.AddNode(new Vector2(-2_300f, -4_600f));
-        RoadNode ciawi = roads.AddNode(new Vector2(5_200f, 5_600f));
-        RoadNode gadog = roads.AddNode(new Vector2(8_200f, 7_800f));
-
-        RoadNode Gateway(DistrictId id, Vector2 toward)
-        {
-            District district = map.Districts.First(d => d.Id == id);
-            Vector2 direction = Vector2.Normalize(toward - district.Center);
-            return NearestOf(gridMap[id], district.Center + (direction * district.Radius * 0.93f));
-        }
-
-        void Arterial(RoadNode from, RoadNode to, RoadKind kind, string name, params Vector2[] via)
-        {
-            Vector2[] control = [from.Position, .. via, to.Position];
-            roads.AddEdge(from, to, RoadNetwork.Spline(control), kind, name);
-        }
-
-        // The real network stops at the edge of the surveyed area. Every main road that would
-        // just end there is carried on into the country roads, so nothing on the map breaks off.
-        RoadNode west = roads.AddNode(new Vector2(-3_650f, -330f));
-        RoadNode farWest = roads.AddNode(new Vector2(-5_500f, 320f));
-        RoadNode north = roads.AddNode(new Vector2(0f, -5_300f));
-        RoadNode northEast = roads.AddNode(new Vector2(2_500f, -6_300f));
-        RoadNode south = roads.AddNode(new Vector2(2_300f, 3_350f));
-
-        // Jalan Veteran carries on west as the road to Dramaga.
-        Arterial(RealNode(new Vector2(-2_844f, -601f)), west, RoadKind.Arterial, "road.dramaga");
-        Arterial(west, farWest, RoadKind.Arterial, "road.dramaga", new Vector2(-4_600f, 120f));
-        Arterial(farWest, Gateway(DistrictId.Dramaga, new Vector2(0f, 0f)), RoadKind.Arterial, "road.dramaga", new Vector2(-7_000f, 120f));
-        Arterial(RealNode(new Vector2(-3_227f, -1_928f)), west, RoadKind.Arterial, "road.dramaga", new Vector2(-3_520f, -1_150f));
-        Arterial(RealNode(new Vector2(-3_233f, -2_381f)), RealNode(new Vector2(-3_290f, -2_867f)), RoadKind.Arterial, "road.jalanbaru");
-        Arterial(RealNode(new Vector2(-2_426f, 2_066f)), farWest, RoadKind.Arterial, "road.dramaga", new Vector2(-4_000f, 1_500f));
-
-        Arterial(RealNode(new Vector2(-1_356f, -3_629f)), jalanBaru, RoadKind.Arterial, "road.jalanbaru", new Vector2(-1_750f, -4_150f));
-        Arterial(RealNode(new Vector2(-2_101f, -3_571f)), jalanBaru, RoadKind.Arterial, "road.jalanbaru");
-        Arterial(RealNode(new Vector2(-3_290f, -2_867f)), jalanBaru, RoadKind.Arterial, "road.jalanbaru", new Vector2(-3_150f, -3_900f));
-        Arterial(jalanBaru, Gateway(DistrictId.Dramaga, new Vector2(-8_000f, -4_000f)),
-            RoadKind.Arterial, "road.jalanbaru", new(-4_500f, -4_250f), new(-6_800f, -2_700f));
-        Arterial(jalanBaru, north, RoadKind.Arterial, "road.jalanbaru", new Vector2(-1_100f, -5_050f));
-        Arterial(north, northEast, RoadKind.Arterial, "road.jalanbaru", new Vector2(1_300f, -5_900f));
-        Arterial(northEast, Gateway(DistrictId.Sentul, new Vector2(0f, -7_000f)), RoadKind.Arterial, "road.jalanbaru");
-        Arterial(RealNode(new Vector2(-669f, -3_526f)), north, RoadKind.Arterial, "road.pemuda", new Vector2(-380f, -4_400f));
-        Arterial(RealNode(new Vector2(471f, -3_684f)), north, RoadKind.Arterial, "road.pajajaran", new Vector2(380f, -4_500f));
-        Arterial(RealNode(new Vector2(1_871f, -3_570f)), northEast, RoadKind.Arterial, "road.kota", new Vector2(2_350f, -4_900f));
-
-        // The Jagorawi toll road starts by the Baranangsiang terminal, as it does in life.
-        Arterial(RealNode(new Vector2(190f, 330f)), Gateway(DistrictId.Sentul, new Vector2(5_000f, 0f)),
-            RoadKind.Toll, "road.jagorawi", new(1_200f, -150f), new(2_600f, -1_700f), new(3_900f, -4_000f), new(4_900f, -5_600f));
-        Arterial(RealNode(new Vector2(1_239f, 2_110f)), south, RoadKind.Arterial, "road.tajur");
-        Arterial(south, ciawi, RoadKind.Arterial, "road.tajur", new(3_782f, 4_709f), new(4_427f, 5_508f));
-        Arterial(RealNode(new Vector2(420f, 2_666f)), south, RoadKind.Arterial, "road.kota", new Vector2(1_300f, 3_150f));
-        Arterial(RealNode(new Vector2(-1_240f, 3_299f)), south, RoadKind.Arterial, "road.kota", new Vector2(500f, 3_800f));
-
+        // Dramaga, Sentul and Cisarua, the toll roads and the country roads between them are in
+        // the same data: nothing outside Gang Selot is generated any more.
         // Twin carriageways sometimes end a few metres apart: close what is left.
         foreach (RoadNode loose in core)
         {
@@ -329,22 +337,6 @@ internal static class WorldGenerator
                 roads.AddEdge(loose, mate, RoadKind.Arterial, roads.Edges[loose.Edges[0]].NameKey);
             }
         }
-
-        Arterial(ciawi, gadog, RoadKind.Arterial, "road.puncak", new Vector2(6_700f, 6_600f));
-
-        // Jalan Raya Puncak: the climb is a string of hairpins.
-        RoadNode puncakGate = Gateway(DistrictId.Puncak, gadog.Position);
-        List<Vector2> hairpins = [];
-        Vector2 along = puncakGate.Position - gadog.Position;
-        Vector2 side = Vector2.Normalize(MathUtil.Left(along));
-        const int bends = 9;
-        for (int i = 1; i < bends; i++)
-        {
-            float t = i / (float)bends;
-            hairpins.Add(gadog.Position + (along * t) + (side * ((i % 2 == 0 ? 1f : -1f) * 190f)));
-        }
-
-        Arterial(gadog, puncakGate, RoadKind.Mountain, "road.puncak", [.. hairpins]);
 
         // Station Road: from the forecourt to the nearest street.
         RoadNode forecourt = roads.AddNode(Terminus + (TrackHeading * 60f) + (StationSide * 58f));
@@ -417,9 +409,10 @@ internal static class WorldGenerator
     }
 
     /// <summary>
-    /// The real street network of central Bogor: every primary to residential street, cut at its
-    /// junctions. One line per stretch: kind (A arterial, S street, G alley), name, then its points in
-    /// metres east,south of Tugu Kujang. Data © OpenStreetMap contributors (ODbL).
+    /// The real road network: every toll road and main road of the whole map, and every street
+    /// down to the alleys in the city centre, Dramaga, Sentul and Cisarua, cut at its junctions.
+    /// One line per stretch: kind (T toll, A arterial, M mountain road, S street, G alley), name,
+    /// then its points in metres east,south of Tugu Kujang. Data © OpenStreetMap contributors (ODbL).
     /// </summary>
     private static List<RoadNode> LoadRealStreets(WorldMap map)
     {
@@ -474,23 +467,48 @@ internal static class WorldGenerator
             RoadNode to = At(points[^1]);
             if (from != to)
             {
-                RoadKind kind = parts[0] switch { "A" => RoadKind.Arterial, "G" => RoadKind.Gang, _ => RoadKind.Street };
-                roads.AddEdge(from, to, points, kind, RoadKey(parts[1]));
+                RoadKind kind = parts[0] switch
+                {
+                    "T" => RoadKind.Toll,
+                    "A" => RoadKind.Arterial,
+                    "M" => RoadKind.Mountain,
+                    "G" => RoadKind.Gang,
+                    _ => RoadKind.Street,
+                };
+                roads.AddEdge(from, to, points, kind, RoadKey(parts[1], kind));
             }
         }
 
         return nodes;
     }
 
+    /// <summary>The race track is in the street data under this name.</summary>
+    private const string CircuitName = "Sirkuit Sentul";
+
     /// <summary>Well-known streets get a translated name; the rest keep the name on their street sign.</summary>
-    private static string RoadKey(string name)
+    private static string RoadKey(string name, RoadKind kind)
     {
+        if (kind == RoadKind.Toll)
+        {
+            return name.Contains("Jakarta", StringComparison.Ordinal) ? "road.jagorawi"
+                : name.Contains("Lingkar Luar", StringComparison.Ordinal) ? "road.borr"
+                : name.Contains("Sukabumi", StringComparison.Ordinal) ? "road.bocimi"
+                : "road.tol";
+        }
+
+        if (name == CircuitName)
+        {
+            return "road.sirkuit";
+        }
+
         (string Part, string Key)[] known =
         [
             ("Pajajaran", "road.pajajaran"), ("Djuanda", "road.juanda"), ("Juanda", "road.juanda"), ("Otto Iskandar", "road.otista"),
             ("Jalak Harupat", "road.jalakharupat"), ("Sudirman", "road.sudirman"), ("Ahmad Yani", "road.ahmadyani"), ("Pemuda", "road.pemuda"),
             ("Surya Kencana", "road.suryakencana"), ("Suryakencana", "road.suryakencana"), ("Siliwangi", "road.siliwangi"),
             ("Kapten Muslihat", "road.muslihat"), ("Jalan Merdeka", "road.merdeka"), ("Jalan Empang", "road.empang"), ("Jalan Pahlawan", "road.pahlawan"),
+            ("Dramaga", "road.dramaga"), ("Sholeh Iskandar", "road.jalanbaru"), ("Soleh Iskandar", "road.jalanbaru"),
+            ("Raya Puncak", "road.puncak"), ("Tajur", "road.tajur"),
         ];
         foreach ((string part, string key) in known)
         {
@@ -573,66 +591,152 @@ internal static class WorldGenerator
         }
     }
 
-    /// <summary>Carries every road that meets the river over it on a bridge, and notes where roads cross the railway.</summary>
+    /// <summary>Carries every road that meets a river over it on a bridge, and notes where roads cross the railway.</summary>
     private static void BuildCrossings(WorldMap map)
     {
         const float step = 2f;
         foreach (RoadEdge edge in map.Roads.Edges)
         {
+            // Most roads come nowhere near a river or a track: one cheap look along the road settles it.
+            bool near = false;
+            for (float d = 0f; d <= edge.Length + step && !near; d += 6f)
+            {
+                near = map.Terrain.CorridorClearance(edge.Sample(MathF.Min(d, edge.Length), out _)) < 14f;
+            }
+
+            if (!near)
+            {
+                continue;
+            }
+
             foreach (Corridor corridor in map.Corridors)
             {
                 bool river = corridor.Kind == CorridorKind.River;
                 float reach = river ? corridor.HalfWidth + 7f : corridor.HalfWidth + 0.5f;
-                List<Vector2> span = [];
-                float nearest = float.MaxValue;
-                float level = 0f;
-                float along = 0f;
-                for (float d = 0f; d <= edge.Length + step; d += step)
+                foreach ((List<Vector2> span, float level, float along) in Spans(corridor, reach, edge.Length, d => edge.Sample(d, out _)))
                 {
-                    Vector2 p = edge.Sample(d, out _);
-                    float at = 0f;
-                    float here = 0f;
-                    float lateral = 0f;
-                    bool inside = d <= edge.Length && corridor.Closest(p, reach, out lateral, out at, out here);
-                    if (inside)
+                    if (river)
                     {
-                        nearest = MathF.Min(nearest, MathF.Abs(lateral));
-                        if (span.Count == 0)
-                        {
-                            level = here;
-                            along = at;
-                        }
-
-                        span.Add(p);
-                        continue;
+                        // The deck sits a touch above the banks it lands on.
+                        AddBridge(map, span, (edge.Width * 0.5f) + 1.2f, level + 2.45f, level);
                     }
-
-                    // A road that only runs along the bank is not a bridge: it must actually get over the water.
-                    if (span.Count >= 2 && nearest < corridor.HalfWidth * 0.5f)
+                    else if (corridor == map.Railway)
                     {
-                        if (river)
-                        {
-                            // The deck sits a touch above the banks it lands on.
-                            float height = level + 2.45f;
-                            float half = (edge.Width * 0.5f) + 1.2f;
-                            for (int i = 0; i < span.Count - 1; i++)
-                            {
-                                map.Terrain.AddDeck(span[i], span[i + 1], half, height);
-                            }
-
-                            map.AddBridge(new Bridge([.. span], half, height, level));
-                        }
-                        else
-                        {
-                            map.AddCrossing(new LevelCrossing(span[span.Count / 2], along));
-                        }
+                        // Only the commuter line has trains, so only its crossings have gates.
+                        map.AddCrossing(new LevelCrossing(span[span.Count / 2], along));
                     }
-
-                    span.Clear();
-                    nearest = float.MaxValue;
                 }
             }
         }
+
+        // A railway gets over a river on a bridge of its own.
+        foreach (Corridor rail in map.Corridors)
+        {
+            if (rail.Kind != CorridorKind.Rail)
+            {
+                continue;
+            }
+
+            foreach (Corridor river in map.Corridors)
+            {
+                if (river.Kind != CorridorKind.River)
+                {
+                    continue;
+                }
+
+                foreach ((List<Vector2> span, float level, _) in Spans(river, river.HalfWidth + 5f, rail.Length, d => rail.Sample(d, out _, out _)))
+                {
+                    rail.Closest(span[span.Count / 2], 20f, out _, out _, out float track);
+                    AddBridge(map, span, 3.2f, MathF.Max(track, level + 2.45f), level);
+                }
+            }
+        }
+    }
+
+    private static void AddBridge(WorldMap map, List<Vector2> span, float half, float height, float water)
+    {
+        for (int i = 0; i < span.Count - 1; i++)
+        {
+            map.Terrain.AddDeck(span[i], span[i + 1], half, height);
+        }
+
+        map.AddBridge(new Bridge([.. span], half, height, water));
+    }
+
+    /// <summary>
+    /// The stretches of a line (sampled by <paramref name="sample"/>) that go right across
+    /// <paramref name="corridor"/>, each with the corridor's level and distance where it enters.
+    /// A line that only runs along the bank is not a crossing.
+    /// </summary>
+    private static List<(List<Vector2> Span, float Level, float Along)> Spans(Corridor corridor, float reach, float length, Func<float, Vector2> sample)
+    {
+        const float step = 2f;
+        List<(List<Vector2>, float, float)> found = [];
+        List<Vector2> span = [];
+        float nearest = float.MaxValue;
+        float level = 0f;
+        float along = 0f;
+        for (float d = 0f; d <= length + step; d += step)
+        {
+            Vector2 p = sample(MathF.Min(d, length));
+            float at = 0f;
+            float here = 0f;
+            float lateral = 0f;
+            bool inside = d <= length && corridor.Closest(p, reach, out lateral, out at, out here);
+            if (inside)
+            {
+                nearest = MathF.Min(nearest, MathF.Abs(lateral));
+                if (span.Count == 0)
+                {
+                    level = here;
+                    along = at;
+                }
+
+                span.Add(p);
+                continue;
+            }
+
+            if (span.Count >= 2 && nearest < corridor.HalfWidth * 0.5f)
+            {
+                found.Add((span, level, along));
+                span = [];
+            }
+            else
+            {
+                span.Clear();
+            }
+
+            nearest = float.MaxValue;
+        }
+
+        return found;
+    }
+
+    /// <summary>Bogor Paledang, where the Sukabumi trains leave from: one short platform under a roof.</summary>
+    private static void BuildPaledang(WorldMap map)
+    {
+        Corridor? line = map.Corridors.FirstOrDefault(c => c.NameKey == "rail.sukabumi");
+        if (line is null)
+        {
+            return;
+        }
+
+        Vector2 start = line.Sample(34f, out Vector2 heading, out float level);
+        Vector2 side = MathUtil.Left(heading);
+        side = side.X > 0f ? side : -side;
+        Vector2 middle = start + (side * 6.6f);
+        float yaw = MathF.Atan2(-side.Y, side.X);
+        float top = level + 1f;
+        map.Terrain.AddDeck(middle - (heading * 26f), middle + (heading * 26f), 3.6f, top);
+        map.AddSlab(new Slab(middle, 3.6f, 30f, yaw, level - 0.6f, top, SlabLook.Concrete));
+        map.AddSlab(new Slab(middle, 4.1f, 24f, yaw, top + 3.4f, top + 3.6f, SlabLook.Zinc));
+        for (float t = -20f; t <= 20f; t += 10f)
+        {
+            map.AddSlab(new Slab(middle + (heading * t) + (side * 2.4f), 0.14f, 0.14f, yaw, top, top + 3.4f, SlabLook.Dark));
+        }
+
+        map.AddSign(new Sign(middle + (side * 4.2f), top + 4.3f, MathUtil.YawOf(side), 14f, "poi.paledang"));
+        map.Reserved.Add((middle, 34f));
     }
 
     /// <summary>Stasiun Bogor: a hall facing its forecourt, one platform under a zinc canopy, and the buffer stop.</summary>
@@ -756,15 +860,15 @@ internal static class WorldGenerator
         Roadside(map, PoiId.Karaoke, "poi.karaoke", new Vector2(520f, -820f), 10f);
         Roadside(map, PoiId.SekolahBinaInsani, "poi.binainsani", new Vector2(-1_450f, -2_250f), 16f);
         Roadside(map, PoiId.LapanganStm, "poi.lapanganstm", new Vector2(700f, 500f), 18f);
-        Roadside(map, PoiId.TerminalDramaga, "poi.terminaldramaga", new Vector2(-8_300f, 320f), 14f);
-        Roadside(map, PoiId.KampusIpb, "poi.kampusipb", new Vector2(-9_000f, 300f), 16f);
+        Roadside(map, PoiId.TerminalDramaga, "poi.terminaldramaga", new Vector2(-8_200f, -4_420f), 14f);
+        Roadside(map, PoiId.KampusIpb, "poi.kampusipb", new Vector2(-8_787f, -4_967f), 16f);
         Shore(map, PoiId.SituGede, "poi.situgede", map.Ponds[1]);
         Roadside(map, PoiId.JalanBaru, "poi.jalanbaru", new Vector2(-2_300f, -4_600f), 12f);
-        Roadside(map, PoiId.SirkuitSentul, "poi.sirkuitsentul", new Vector2(5_500f, -7_500f), 16f);
-        Roadside(map, PoiId.Ciawi, "poi.ciawi", new Vector2(5_200f, 5_600f), 12f);
-        Roadside(map, PoiId.PuncakPass, "poi.puncakpass", new Vector2(12_800f, 10_800f), 14f);
-        Roadside(map, PoiId.VillaMisterius, "poi.villamisterius", new Vector2(13_300f, 10_250f), 22f);
-        Roadside(map, PoiId.KebunTeh, "poi.kebunteh", new Vector2(12_100f, 10_300f), 12f);
+        Roadside(map, PoiId.SirkuitSentul, "poi.sirkuitsentul", new Vector2(5_740f, -7_290f), 16f);
+        Roadside(map, PoiId.Ciawi, "poi.ciawi", new Vector2(4_970f, 6_100f), 12f);
+        Roadside(map, PoiId.PuncakPass, "poi.puncakpass", new Vector2(16_050f, 9_080f), 14f);
+        Roadside(map, PoiId.VillaMisterius, "poi.villamisterius", new Vector2(16_500f, 8_500f), 22f);
+        Roadside(map, PoiId.KebunTeh, "poi.kebunteh", new Vector2(15_300f, 9_450f), 12f);
     }
 
     private enum PlaceKind
@@ -794,19 +898,22 @@ internal static class WorldGenerator
         DomeMinaret,
     }
 
+    /// <param name="Model">The building's own model, when it has one (assets/blender/landmarks.py). The plot is Width x Depth times Scale.</param>
+    /// <param name="Board">Where the model keeps a band free for its name: metres in front of the centre, to the left of it, above the ground, and the width of the board.</param>
     private readonly record struct RealPlace(
-        PoiId Id, string Key, Vector2 At, PlaceKind Kind, float Width = 0f, float Depth = 0f, float Height = 0f, Feature Feature = Feature.None);
+        PoiId Id, string Key, Vector2 At, PlaceKind Kind, float Width = 0f, float Depth = 0f, float Height = 0f, Feature Feature = Feature.None,
+        string? Model = null, float Scale = 1f, Vector4 Board = default);
 
     /// <summary>The places people know Bogor by, each at its true position.</summary>
     private static readonly RealPlace[] RealPlaces =
     [
-        new(PoiId.IstanaBogor, "poi.istanabogor", new(-847f, -378f), PlaceKind.Hall, 64f, 20f, 7.6f, Feature.PorticoDome),
-        new(PoiId.MuseumZoologi, "poi.museumzoologi", new(-900f, 238f), PlaceKind.Hall, 36f, 16f, 7.6f, Feature.Portico),
-        new(PoiId.MuseumTanah, "poi.museumtanah", new(-786f, 265f), PlaceKind.Hall, 30f, 14f, 7.6f),
-        new(PoiId.MuseumPeta, "poi.museumpeta", new(-963f, -1_795f), PlaceKind.Hall, 40f, 16f, 7.6f, Feature.Portico),
-        new(PoiId.BalaiKota, "poi.balaikota", new(-1_257f, -701f), PlaceKind.Hall, 44f, 18f, 7.6f, Feature.Portico),
-        new(PoiId.Katedral, "poi.katedral", new(-1_311f, -500f), PlaceKind.Hall, 18f, 36f, 15.2f, Feature.Spire),
-        new(PoiId.MasjidRaya, "poi.masjidraya", new(392f, 645f), PlaceKind.Hall, 34f, 30f, 11.4f, Feature.DomeMinaret),
+        new(PoiId.IstanaBogor, "poi.istanabogor", new(-847f, -378f), PlaceKind.Hall, 64f, 20f, 11.6f, Model: "istana_bogor", Board: new(10.03f, 0f, 8.5f, 14f)),
+        new(PoiId.MuseumZoologi, "poi.museumzoologi", new(-900f, 238f), PlaceKind.Hall, 36f, 16f, 9.7f, Model: "museum_bogor", Board: new(8.03f, 0f, 6.8f, 12f)),
+        new(PoiId.MuseumTanah, "poi.museumtanah", new(-786f, 265f), PlaceKind.Hall, 36f, 16f, 9.7f, Model: "museum_bogor", Scale: 0.84f, Board: new(8.03f, 0f, 6.8f, 12f)),
+        new(PoiId.MuseumPeta, "poi.museumpeta", new(-963f, -1_795f), PlaceKind.Hall, 36f, 16f, 9.7f, Model: "museum_bogor", Scale: 1.1f, Board: new(8.03f, 0f, 6.8f, 12f)),
+        new(PoiId.BalaiKota, "poi.balaikota", new(-1_257f, -701f), PlaceKind.Hall, 44f, 18f, 11.9f, Model: "balai_kota", Board: new(8.83f, 0f, 7.3f, 15f)),
+        new(PoiId.Katedral, "poi.katedral", new(-1_311f, -500f), PlaceKind.Hall, 18f, 36f, 21f, Model: "katedral_bogor", Board: new(17.63f, 0f, 9.2f, 5f)),
+        new(PoiId.MasjidRaya, "poi.masjidraya", new(392f, 645f), PlaceKind.Hall, 34f, 30f, 12f, Model: "masjid_raya", Board: new(13.75f, 1.5f, 10.35f, 8f)),
         new(PoiId.BotaniSquare, "poi.botanisquare", new(254f, -11f), PlaceKind.Mall, 70f, 46f, 18f),
         new(PoiId.BogorTradeMall, "poi.btm", new(-1_040f, 383f), PlaceKind.Mall, 60f, 42f, 24f),
         new(PoiId.YogyaJunction, "poi.yogyajunction", new(-964f, -1_382f), PlaceKind.Mall, 52f, 38f, 18f),
@@ -854,9 +961,11 @@ internal static class WorldGenerator
             switch (place.Kind)
             {
                 case PlaceKind.Mall or PlaceKind.Hall:
-                    Vector2 centre = poi.Position + (back * ((place.Depth * 0.5f) + 6f));
+                    float plotWidth = place.Width * place.Scale;
+                    float plotDepth = place.Depth * place.Scale;
+                    Vector2 centre = poi.Position + (back * ((plotDepth * 0.5f) + 6f));
                     // Keep off the river bank and the track: slide along the road until clear.
-                    float room = (MathF.Max(place.Width, place.Depth) * 0.71f) + 8f;
+                    float room = (MathF.Max(plotWidth, plotDepth) * 0.71f) + 8f;
                     foreach (float shift in (ReadOnlySpan<float>)[0f, 25f, -25f, 50f, -50f, 80f, -80f, 120f, -120f])
                     {
                         if (map.Terrain.CorridorClearance(centre + (across * shift)) > room)
@@ -866,11 +975,19 @@ internal static class WorldGenerator
                         }
                     }
 
-                    BuildingStyle style = place.Kind == PlaceKind.Mall ? BuildingStyle.Mall : BuildingStyle.Kampus;
-                    Building building = new(centre, place.Width * 0.5f, place.Depth * 0.5f, MathUtil.YawOf(back), place.Height, style, (uint)place.Id + 77u, 0f);
+                    BuildingStyle style = place.Model is not null ? BuildingStyle.Landmark : place.Kind == PlaceKind.Mall ? BuildingStyle.Mall : BuildingStyle.Kampus;
+                    Building building = new(centre, plotWidth * 0.5f, plotDepth * 0.5f, MathUtil.YawOf(back), place.Height * place.Scale, style, (uint)place.Id + 77u, 0f);
                     float ground = FoundationHeight(map, building);
                     buildings.Add(building);
-                    map.Reserved.Add((centre, (MathF.Max(place.Width, place.Depth) * 0.72f) + 4f));
+                    map.Reserved.Add((centre, (MathF.Max(plotWidth, plotDepth) * 0.72f) + 4f));
+                    if (place.Model is not null)
+                    {
+                        // The building is a model of its own; the box above is only what one bumps into.
+                        map.AddProp(new Prop(place.Model, centre, poi.Yaw, place.Scale, 0f, Landmark: true));
+                        Vector2 board = centre - (back * (place.Board.X * place.Scale)) + (MathUtil.Left(-back) * (place.Board.Y * place.Scale));
+                        map.AddSign(new Sign(board, map.Terrain.HeightAt(centre) + (place.Board.Z * place.Scale), poi.Yaw, place.Board.W * place.Scale, place.Key));
+                        break;
+                    }
 
                     // The roof line as the view draws it: whole storeys of the style's height.
                     float storey = style == BuildingStyle.Mall ? 6f : 3.8f;
@@ -941,8 +1058,15 @@ internal static class WorldGenerator
                     break;
 
                 case PlaceKind.Gate:
-                    // Lawang Suryakencana, the gate of the old Chinese quarter.
-                    map.AddProp(new Prop("gapura_gang", poi.RoadPoint, poi.Yaw + (MathF.PI * 0.5f), 2.4f, 0f));
+                    // Lawang Suryakencana, the gate of the old Chinese quarter, astride the street.
+                    float gateYaw = poi.Yaw + (MathF.PI * 0.5f);
+                    map.AddProp(new Prop("lawang_suryakencana", poi.RoadPoint, gateYaw, 1f, 0f, Landmark: true));
+                    foreach (float face in (ReadOnlySpan<float>)[0f, MathF.PI])
+                    {
+                        Vector2 facing = MathUtil.Forward(gateYaw + face);
+                        map.AddSign(new Sign(poi.RoadPoint + (facing * 0.26f), map.Terrain.HeightAt(poi.RoadPoint) + 7.75f, gateYaw + face, 8f, place.Key));
+                    }
+
                     break;
 
                 case PlaceKind.Shelter:
@@ -970,7 +1094,8 @@ internal static class WorldGenerator
     /// <summary>Snaps a wished-for location to the nearest road and puts the place on its left kerb.</summary>
     private static void Roadside(WorldMap map, PoiId id, string nameKey, Vector2 wish, float clearRadius)
     {
-        RoadHit hit = map.Roads.Nearest(wish, 900f) ?? throw new InvalidOperationException($"No road near {id}.");
+        // Never on a toll road: nobody can stop there.
+        RoadHit hit = map.Roads.Nearest(wish, 900f, e => e.Kind != RoadKind.Toll) ?? throw new InvalidOperationException($"No road near {id}.");
         Vector2 left = MathUtil.Left(hit.Direction);
         // Choose the side the wish was on, so a pond-side place stays by its pond.
         float sign = Vector2.Dot(wish - hit.Point, left) >= 0f ? 1f : -1f;
@@ -981,7 +1106,7 @@ internal static class WorldGenerator
     /// <summary>A place on the bank of a pond, on the side facing the nearest road.</summary>
     private static void Shore(WorldMap map, PoiId id, string nameKey, Pond pond)
     {
-        RoadHit hit = map.Roads.Nearest(pond.Center, 900f) ?? throw new InvalidOperationException($"No road near {id}.");
+        RoadHit hit = map.Roads.Nearest(pond.Center, 900f, e => e.Kind != RoadKind.Toll) ?? throw new InvalidOperationException($"No road near {id}.");
         Vector2 toRoad = Vector2.Normalize(hit.Point - pond.Center);
         Vector2 position = pond.Center + (toRoad * (pond.Radius + 3.5f));
         // Facing the water, so the hut and the angler look out over the pond.
@@ -1003,6 +1128,20 @@ internal static class WorldGenerator
         {
             Poi poi = map[id];
             map.AddProp(new Prop(model, poi.Position + offset, poi.Yaw + yawOffset, scale, radius));
+        }
+
+        // Cameras also watch the places where crowds gather.
+        foreach (PoiId id in (ReadOnlySpan<PoiId>)[PoiId.PasarAnyar, PoiId.StasiunBogor, PoiId.BalaiKota, PoiId.AlunAlun,
+            PoiId.TerminalBaranangsiang, PoiId.PasarBogor, PoiId.BotaniSquare, PoiId.GerbangKebunRaya])
+        {
+            Poi poi = map[id];
+            Vector2 away = poi.RoadPoint - poi.Position;
+            Vector2 mast = poi.RoadPoint - (Vector2.Normalize(away) * 1.2f) + (MathUtil.Left(Vector2.Normalize(away)) * 9f);
+            if (away.LengthSquared() > 1f && !map.Roads.IsOnRoad(mast, 0.3f))
+            {
+                map.AddProp(new Prop("cctv", mast, MathUtil.YawOf(away), 1f, 0.2f));
+                map.Reserved.Add((mast, 1f));
+            }
         }
 
         At(PoiId.TuguKujang, "tugu_kujang", 5f);
@@ -1068,7 +1207,7 @@ internal static class WorldGenerator
     {
         foreach (RoadEdge edge in map.Roads.Edges)
         {
-            if (edge.Kind == RoadKind.Toll)
+            if (edge.Kind == RoadKind.Toll || edge.NameKey == "road.sirkuit")
             {
                 continue;
             }
@@ -1138,7 +1277,8 @@ internal static class WorldGenerator
                 {
                     Vector2 p = district.Center + new Vector2(i * spacing, j * spacing) + new Vector2(rng.Range(-3f, 3f), rng.Range(-3f, 3f));
                     // Smaller districts lie inside the city; let each point be handled by its own district only.
-                    if (!rng.Chance(fill) || map.DistrictAt(p) != district || map.Roads.Nearest(p, 120f) is not { } road)
+                    if (!rng.Chance(fill) || map.DistrictAt(p) != district || map.Roads.Nearest(p, 120f) is not { } road
+                        || road.Edge.NameKey == "road.sirkuit")
                     {
                         continue;
                     }
@@ -1297,6 +1437,278 @@ internal static class WorldGenerator
                 Vector2 position = point + (left * ((edge.Width * 0.5f) + 0.9f));
                 map.AddProp(new Prop("lampu_jalan", position, MathUtil.YawOf(-left), 1f, 0.2f));
                 side = -side;
+            }
+        }
+
+        PlaceSignals(map);
+    }
+
+    /// <summary>
+    /// Traffic lights where main roads meet in town, one for every arm, taking turns; and a
+    /// camera mast to watch each of those junctions.
+    /// </summary>
+    private static void PlaceSignals(WorldMap map)
+    {
+        List<Vector2> lit = [];
+        List<(RoadEdge Edge, Vector2 Post, Vector2 Travel)> arms = [];
+        foreach (RoadNode node in map.Roads.Nodes)
+        {
+            if (map.DistrictAt(node.Position) is null)
+            {
+                continue;
+            }
+
+            int main = 0;
+            bool plain = true;
+            arms.Clear();
+            foreach (int id in node.Edges)
+            {
+                RoadEdge edge = map.Roads.Edges[id];
+                main += edge.Kind == RoadKind.Arterial ? 1 : 0;
+                plain &= edge.Kind != RoadKind.Toll && edge.From != edge.To;
+                if (edge.Kind is not (RoadKind.Arterial or RoadKind.Street) || edge.Length < 30f)
+                {
+                    continue;
+                }
+
+                // The post stands at the left kerb, 11 m short of the junction, and not in the
+                // mouth of another road: an arm with nowhere to put it goes without a light.
+                bool arriving = edge.To == node.Id;
+                Vector2 point = edge.Sample(arriving ? edge.Length - 11f : 11f, out Vector2 direction);
+                Vector2 travel = arriving ? direction : -direction;
+                Vector2 post = point + (MathUtil.Left(travel) * ((edge.Width * 0.5f) + 0.7f));
+                if (!map.Roads.IsOnRoad(post))
+                {
+                    arms.Add((edge, post, travel));
+                }
+            }
+
+            // Only where big roads really cross, and real junctions come as clusters of points
+            // (one per carriageway): one set of lights for each.
+            if (!plain || main < 3 || arms.Count < 3 || lit.Exists(p => Vector2.DistanceSquared(p, node.Position) < 220f * 220f))
+            {
+                continue;
+            }
+
+            lit.Add(node.Position);
+            for (int slot = 0; slot < arms.Count; slot++)
+            {
+                (RoadEdge edge, Vector2 post, Vector2 travel) = arms[slot];
+                float yaw = MathUtil.YawOf(-travel);
+                map.AddSignal(new TrafficSignal(post, yaw, node.Id, edge.Id, slot, arms.Count));
+                map.AddProp(new Prop("lampu_merah", post, yaw, 1f, 0.15f));
+                Vector2 mast = post - (travel * 6f) - (MathUtil.Left(travel) * (edge.Width + 1.6f));
+                if (slot == 0 && !map.Roads.IsOnRoad(mast, 0.3f))
+                {
+                    map.AddProp(new Prop("cctv", mast, MathUtil.YawOf(MathUtil.Left(travel)), 1f, 0.2f));
+                }
+            }
+        }
+    }
+
+    private static readonly string[] BannerKeys =
+    [
+        "banner.dirgahayu", "banner.pecellele", "banner.khitanan", "banner.futsal", "banner.diskon",
+        "banner.sampah", "banner.reuni", "banner.kredit", "banner.asinan", "banner.tertib",
+    ];
+
+    private static readonly string[] ShopKeys =
+    [
+        "shop.apotek", "shop.sinarjaya", "shop.fotokopi", "shop.laundry", "shop.bakso",
+        "shop.pulsa", "shop.warungnasi", "shop.bengkel", "shop.lapistalas", "shop.tokomas",
+    ];
+
+    /// <summary>
+    /// What makes a street look lived in: cloth banners between bamboo poles, the light boxes of
+    /// the shops, and a big LED screen at the busiest corners. Placed before the houses, which
+    /// then keep off them.
+    /// </summary>
+    /// <summary>
+    /// Water plants: lily pads and water hyacinth afloat near the banks of the ponds and in the
+    /// slack water at the river's edge, reeds rooted in the shallows. They are scenery only
+    /// (no collision), so swimming and fishing are not in their way.
+    /// </summary>
+    private static void PlaceWaterPlants(WorldMap map)
+    {
+        Rng rng = new(map.Seed + 4242u);
+        Terrain terrain = map.Terrain;
+        foreach (Pond pond in map.Ponds)
+        {
+            // The bigger the pond the more of everything; the middle stays open water.
+            int clumps = (int)(pond.Radius * 0.55f);
+            for (int i = 0; i < clumps; i++)
+            {
+                float angle = rng.Range(0f, MathUtil.Tau);
+                Vector2 out_ = new(MathF.Cos(angle), MathF.Sin(angle));
+                float roll = rng.NextFloat();
+                if (roll < 0.4f)
+                {
+                    // Reeds stand with their feet in the water right at the bank.
+                    Vector2 p = pond.Center + (out_ * (pond.Radius * rng.Range(0.93f, 0.99f)));
+                    map.AddProp(new Prop("gelagah", p, rng.Range(0f, MathUtil.Tau), rng.Range(0.8f, 1.3f), 0f));
+                }
+                else
+                {
+                    Vector2 p = pond.Center + (out_ * (pond.Radius * rng.Range(0.5f, 0.9f)));
+                    if (terrain.WaterLevelAt(p) is { } level && level - terrain.GroundAt(p.X, p.Y) > 0.2f)
+                    {
+                        string model = roll < 0.75f ? "teratai" : "eceng_gondok";
+                        map.AddProp(new Prop(model, p, rng.Range(0f, MathUtil.Tau), rng.Range(0.8f, 1.35f), 0f, Afloat: true));
+                    }
+                }
+            }
+        }
+
+        foreach (Corridor corridor in terrain.Corridors)
+        {
+            if (corridor.Kind != CorridorKind.River)
+            {
+                continue;
+            }
+
+            for (float along = 20f; along < corridor.Length - 20f; along += 16f)
+            {
+                float roll = rng.NextFloat();
+                float side = rng.Chance(0.5f) ? 1f : -1f;
+                float reach = rng.Range(0.72f, 0.97f);
+                float turn = rng.Range(0f, MathUtil.Tau);
+                float size = rng.Range(0.8f, 1.3f);
+                if (roll > 0.5f)
+                {
+                    continue;
+                }
+
+                Vector2 centre = corridor.Sample(along, out Vector2 direction, out _);
+                Vector2 p = centre + (MathUtil.Left(direction) * (side * corridor.HalfWidth * reach));
+                if (terrain.WaterLevelAt(p) is not { } level || map.Roads.IsOnRoad(p, 1f))
+                {
+                    continue;
+                }
+
+                float depth = level - terrain.GroundAt(p.X, p.Y);
+                if (roll < 0.3f && depth < 0.9f)
+                {
+                    map.AddProp(new Prop("gelagah", p, turn, size, 0f));
+                }
+                else if (depth > 0.2f)
+                {
+                    map.AddProp(new Prop(roll < 0.42f ? "eceng_gondok" : "teratai", p, turn, size, 0f, Afloat: true));
+                }
+            }
+        }
+    }
+
+    private static void PlaceStreetLife(WorldMap map)
+    {
+        Rng rng = new(map.Seed + 9191u);
+        bool Free(Vector2 position, float radius)
+        {
+            if (map.Roads.IsOnRoad(position, radius * 0.5f) || map.IsInsideBuilding(position, radius) || map.Terrain.WaterLevelAt(position) is not null)
+            {
+                return false;
+            }
+
+            foreach ((Vector2 centre, float taken) in map.Reserved)
+            {
+                if (Vector2.DistanceSquared(centre, position) < (taken + radius) * (taken + radius))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        foreach (PoiId id in (ReadOnlySpan<PoiId>)[PoiId.TuguKujang, PoiId.BotaniSquare, PoiId.PasarAnyar, PoiId.StasiunBogor,
+            PoiId.SuryaKencana, PoiId.TerminalBaranangsiang, PoiId.AlunAlun])
+        {
+            Poi poi = map[id];
+            if (map.Roads.Nearest(poi.RoadPoint, 40f, e => e.Kind is RoadKind.Arterial or RoadKind.Street) is not { } hit)
+            {
+                continue;
+            }
+
+            foreach (float along in (ReadOnlySpan<float>)[28f, -28f, 44f, -44f, 60f, -60f])
+            {
+                float at = hit.Distance + along;
+                if (at < 8f || at > hit.Edge.Length - 8f)
+                {
+                    continue;
+                }
+
+                // Across the road from the place itself, turned to face whoever comes from it.
+                Vector2 point = hit.Edge.Sample(at, out Vector2 direction);
+                float side = Vector2.Dot(poi.Position - point, MathUtil.Left(direction)) > 0f ? -1f : 1f;
+                Vector2 position = point + (MathUtil.Left(direction) * side * ((hit.Edge.Width * 0.5f) + 3f));
+                if (!Free(position, 3.5f))
+                {
+                    continue;
+                }
+
+                map.AddProp(new Prop("videotron", position, MathUtil.YawOf(direction * -MathF.Sign(along)), 1f, 0.7f, Landmark: true));
+                map.Reserved.Add((position, 4.5f));
+                break;
+            }
+        }
+
+        int banners = 0;
+        int boxes = 0;
+        foreach (RoadEdge edge in map.Roads.Edges)
+        {
+            if (edge.Kind is not (RoadKind.Street or RoadKind.Arterial) || edge.Length < 50f)
+            {
+                continue;
+            }
+
+            Vector2 mid = edge.Sample(edge.Length * 0.5f, out _);
+            if (map.DistrictAt(mid)?.Id is not (DistrictId.PusatKota or DistrictId.PasarAnyar or DistrictId.Empang
+                or DistrictId.SuryaKencana or DistrictId.GangSelot or DistrictId.Dramaga))
+            {
+                continue;
+            }
+
+            for (float t = 22f; t < edge.Length - 22f; t += 31f)
+            {
+                float roll = rng.NextFloat();
+                float sign = rng.Chance(0.5f) ? 1f : -1f;
+                int pick = rng.Range(0, BannerKeys.Length);
+                Vector2 point = edge.Sample(t, out Vector2 direction);
+                Vector2 left = MathUtil.Left(direction) * sign;
+                if (roll < 0.1f && banners < 110)
+                {
+                    // Along the kerb, facing the road.
+                    Vector2 position = point + (left * ((edge.Width * 0.5f) + 1.5f));
+                    if (!Free(position, 2.6f))
+                    {
+                        continue;
+                    }
+
+                    float yaw = MathUtil.YawOf(-left);
+                    map.AddProp(new Prop("spanduk", position, yaw, 1f, 0f));
+                    map.AddSign(new Sign(position, map.Terrain.HeightAt(position) + 1.9f, yaw, 4f, BannerKeys[pick], SignLook.Banner));
+                    map.Reserved.Add((position, 2.8f));
+                    banners++;
+                }
+                else if (roll < 0.26f && boxes < 130)
+                {
+                    // Square to the road, so it is read while walking or driving along it.
+                    Vector2 position = point + (left * ((edge.Width * 0.5f) + 0.8f));
+                    if (!Free(position, 1f))
+                    {
+                        continue;
+                    }
+
+                    float yaw = MathUtil.YawOf(direction);
+                    map.AddProp(new Prop("light_box", position, yaw, 1f, 0.12f));
+                    foreach (float face in (ReadOnlySpan<float>)[0f, MathF.PI])
+                    {
+                        Vector2 facing = MathUtil.Forward(yaw + face);
+                        map.AddSign(new Sign(position + (facing * 0.13f), map.Terrain.HeightAt(position) + 3.05f, yaw + face, 1.5f, ShopKeys[pick], SignLook.LightBox));
+                    }
+
+                    map.Reserved.Add((position, 1.2f));
+                    boxes++;
+                }
             }
         }
     }

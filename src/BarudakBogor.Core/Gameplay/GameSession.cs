@@ -40,7 +40,7 @@ public sealed class GameSession
         Map = map;
         _rng = new Rng(seed * 2_654_435_761u);
         Weather = new WeatherSystem(seed + 11u);
-        Population = new Population(map, seed + 23u);
+        Population = new Population(map, seed + 23u) { Parked = _vehicles };
         Player.Profile = CharacterProfile.Of(character);
         Missions = new MissionManager(this);
 

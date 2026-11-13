@@ -25,9 +25,9 @@ Peta berukuran 40 km x 40 km dengan Tugu Kujang di tengah. Timur di kanan, selat
 | Pasar Anyar | Tenda pasar, kios, keramaian: tempat terbaik jualan bandrek |
 | Gang Selot | Labirin gang yang hanya muat motor dan gerobak |
 | Empang | Rumah kampung, empang pemancingan, lapangan badminton, kontrakan |
-| Dramaga | Kampus IPB, pangkalan angkot, Situ Gede |
-| Sentul | Jalan lebar, sirkuit, lewat Tol Jagorawi |
-| Puncak | Tikungan tajam, kebun teh, hutan pinus, kabut, monyet, dan Villa Misterius |
+| Dramaga | Kampus IPB, pangkalan angkot, dan Situ Gede di timur lautnya, semua di tempat aslinya di barat laut kota |
+| Sentul | Sirkuit Sentul dan perumahannya di utara, lewat Tol Jagorawi |
+| Puncak | Jalan Raya Puncak dari Ciawi naik ke Cisarua: kebun teh, hutan pinus, kabut, monyet, dan Villa Misterius |
 
 ![Peta](../images/peta.png)
 
@@ -91,15 +91,49 @@ Menabrakkan kendaraan ke arah pejalan kaki mengurangi reputasi Walikota. Mereka 
 
 ## Kota
 
-Pusat peta disusun seperti Bogor yang asli, diukur dari Tugu Kujang: lingkar Kebun Raya (Pajajaran, Otista, Juanda, Jalak Harupat), jalan-jalan utama, Ciliwung, dan rel KRL mengikuti garis sebenarnya (data peta © kontributor OpenStreetMap). Jalan kecil dibangkitkan.
+Seluruh peta disusun seperti Bogor yang asli, diukur dari Tugu Kujang (data peta © kontributor OpenStreetMap): lingkar Kebun Raya (Pajajaran, Otista, Juanda, Jalak Harupat), semua jalan raya sampai tepi peta, Tol Jagorawi, Tol Lingkar Luar Bogor, dan Tol Bocimi, Sungai Ciliwung dan Cisadane, rel KRL, dan rel ke Sukabumi yang berangkat dari Bogor Paledang. Jalan lingkungan dan gang di pusat kota, Dramaga, Sentul, dan Cisarua juga jalan asli. Di luar keempat kawasan itu hanya jalan raya yang ada.
+
+Yang tidak persis: Puncak Pass dan Telaga Warna yang asli berada sekitar 2 km di luar tepi timur peta, jadi di game keduanya ditaruh di Cisarua. Simpang susun tol digambar sebidang, tanpa jalan layang.
 
 ![Peta kota](../images/peta-kota.png)
 
-Tempat yang bisa didatangi dan dituju dengan ojek antara lain Istana Bogor, museum (Zoologi, PETA, Tanah dan Pertanian), mal (Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Ekalokasari, Lotte Mart, Bogor Great Mall), Lawang Suryakencana, Air Mancur, Lapangan Sempur, GOR Pajajaran, Stasiun Bogor, dan Terminal Baranangsiang. Bangunannya masih generik; papan nama belum ada.
+Tempat yang bisa didatangi dan dituju dengan ojek antara lain Istana Bogor, museum (Zoologi, PETA, Tanah dan Pertanian), mal (Botani Square, Bogor Trade Mall, Yogya Bogor Junction, Ramayana, Plaza Jambu Dua, Ekalokasari, Lotte Mart, Bogor Great Mall), Lawang Suryakencana, Air Mancur, Lapangan Sempur, GOR Pajajaran, Stasiun Bogor, dan Terminal Baranangsiang. Semuanya berpapan nama. Istana Bogor, ketiga museum, Balai Kota, Katedral, Masjid Raya, dan Lawang Suryakencana punya bangunan sendiri; mal masih berupa gedung kotak.
 
 ![Stasiun Bogor](../images/stasiun.png)
 
 KRL berangkat dari Stasiun Bogor tiap beberapa menit lalu kembali. Kereta berhenti kalau ada orang di rel, dan lalu lintas menunggu di perlintasan.
+
+## Kehidupan jalanan
+
+![Lampu merah](../images/lampu-merah.png)
+
+Kendaraan lain tidak saling menembus: mereka mengantre, menyalip angkot yang ngetem bila lajur lawan kosong, bergantian di persimpangan, dan berhenti di lampu merah. Lampu merah ada di simpang jalan raya dalam kota; tiap lengan mendapat giliran hijau. Lampu itu hanya mengikat lalu lintas: Anda sendiri bebas, dan tidak ada tilang.
+
+![Warga jalanan](../images/warga-badut.png)
+
+Di antara warga ada pedagang kaki lima berpikulan, polisi, PNS berseragam khaki (pagi dan sore), badut (siang), pengamen, dan anak punk (sore sampai malam). Polisi, badut, pengamen, dan anak punk lebih banyak berdiri daripada berjalan.
+
+![Merpati](../images/burung-terbang.png)
+
+Kawanan merpati mematuk-matuk di Tugu Kujang, Alun-Alun, Pasar Anyar, Masjid Raya, stasiun, Balai Kota, Sempur, dan gerbang Kebun Raya. Dekati mereka (atau lewat dengan kendaraan) dan mereka terbang lalu hinggap di tempat lain. Monyet kini juga ada di Kebun Raya dekat gerbang, dan ayam berkeliaran di sekitar kontrakan Ujang, Empang, dan Gang Selot.
+
+Di pinggir jalan pusat kota ada spanduk, light box toko yang menyala di malam hari, tiang CCTV, dan videotron yang iklannya berganti tiap enam detik.
+
+## Kehidupan air
+
+![Teratai](../images/teratai.png)
+
+Ketiga kolam (Empang, Situ Gede, Telaga Warna) dan kedua sungai punya penghuni. Di setiap kolam ada ikan mas yang berenang di dekat permukaan, kura-kura dengan tempurung menyembul, dan bebek. Di Ciliwung dan Cisadane, tiap kira-kira 400 m ada sekawanan ikan, dan bergantian kura-kura, bebek, atau seekor buaya.
+
+![Buaya](../images/buaya.png)
+
+Buayanya pemalas dan tidak berbahaya: ia hanya hanyut, dan berenang menjauh kalau Anda mendekat. Ikan melesat pergi kalau Anda masuk ke air; kura-kura dan bebek juga menjaga jarak. Tidak ada hewan air yang naik ke darat.
+
+Teratai dan eceng gondok mengapung di dekat tepian, dan gelagah tumbuh di air dangkal. Semuanya hanya hiasan: bisa dilewati saat berenang dan tidak mengganggu memancing.
+
+![Berenang](../images/berenang.png)
+
+Di air karakter Anda berenang saat bergerak dan mengapung di tempat saat diam. Lompatan (Spasi) kini punya gerakannya sendiri, begitu juga memancing, badminton, dan karaoke.
 
 ## Misi tambahan
 

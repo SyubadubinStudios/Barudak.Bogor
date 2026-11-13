@@ -87,6 +87,52 @@ public sealed class RoadEdge
     /// <summary>Distance along the edge at polyline vertex <paramref name="index"/>.</summary>
     public float DistanceAtVertex(int index) => _cumulative[index];
 
+    /// <summary>
+    /// Height of the carriageway at every vertex (even entries) and half way between each pair
+    /// (odd entries): the cross-sections the view draws the road through.
+    /// </summary>
+    internal float[]? Profile { get; set; }
+
+    /// <summary>Unit direction of the road at vertex <paramref name="index"/>, as the view draws it.</summary>
+    public Vector2 Tangent(int index)
+    {
+        Vector2 d = Points[Math.Min(index + 1, Points.Length - 1)] - Points[Math.Max(index - 1, 0)];
+        return d.LengthSquared() > 1e-6f ? Vector2.Normalize(d) : Vector2.UnitY;
+    }
+
+    /// <summary>Centre and direction of cross-section <paramref name="k"/> of <see cref="Profile"/>.</summary>
+    internal (Vector2 Centre, Vector2 Direction) Section(int k)
+    {
+        int i = k / 2;
+        if ((k & 1) == 0)
+        {
+            return (Points[i], Tangent(i));
+        }
+
+        Vector2 t = Tangent(i) + Tangent(i + 1);
+        return ((Points[i] + Points[i + 1]) * 0.5f, t.LengthSquared() > 1e-6f ? Vector2.Normalize(t) : Tangent(i));
+    }
+
+    /// <summary>Height of the carriageway at <paramref name="distance"/> metres from the start.</summary>
+    public float SurfaceAt(float distance)
+    {
+        float[] profile = Profile ?? throw new InvalidOperationException("The road surfaces have not been built.");
+        distance = Math.Clamp(distance, 0f, Length);
+        int hi = Array.BinarySearch(_cumulative, distance);
+        if (hi < 0)
+        {
+            hi = ~hi;
+        }
+
+        hi = Math.Clamp(hi, 1, Points.Length - 1);
+        float span = _cumulative[hi] - _cumulative[hi - 1];
+        float t = span > 1e-5f ? (distance - _cumulative[hi - 1]) / span : 0f;
+        int k = (hi - 1) * 2;
+        return t < 0.5f
+            ? MathUtil.Lerp(profile[k], profile[k + 1], t * 2f)
+            : MathUtil.Lerp(profile[k + 1], profile[k + 2], (t - 0.5f) * 2f);
+    }
+
     /// <summary>Position and unit direction at <paramref name="distance"/> metres from the start.</summary>
     public Vector2 Sample(float distance, out Vector2 direction)
     {
@@ -206,6 +252,123 @@ public sealed class RoadNetwork
 
     /// <summary>The other end of <paramref name="edge"/> seen from <paramref name="nodeId"/>.</summary>
     public static int OtherEnd(RoadEdge edge, int nodeId) => edge.From == nodeId ? edge.To : edge.From;
+
+    private const float RaisedCell = 4f;
+    private readonly HashSet<long> _raised = [];
+
+    /// <summary>
+    /// Works out the height of every carriageway. A road is flat from kerb to kerb, so across a
+    /// slope it stands above the ground on its low side: those stretches are remembered, and
+    /// <see cref="SurfaceAt"/> answers for them. Call once the ground and the bridges are final.
+    /// </summary>
+    internal void BuildSurfaces(Terrain terrain)
+    {
+        foreach (RoadEdge edge in _edges)
+        {
+            float half = edge.Width * 0.5f;
+            int count = (edge.Points.Length * 2) - 1;
+            float[] profile = new float[count];
+            bool[] raised = new bool[count];
+            for (int k = 0; k < count; k++)
+            {
+                (Vector2 c, Vector2 t) = edge.Section(k);
+                Vector2 side = MathUtil.Left(t) * half;
+                float centre = terrain.SolidAt(c.X, c.Y);
+                float left = terrain.SolidAt(c.X + side.X, c.Y + side.Y);
+                float right = terrain.SolidAt(c.X - side.X, c.Y - side.Y);
+                // The whole cross-section rides on the highest of its three samples so the verge never pokes through.
+                profile[k] = MathF.Max(centre, MathF.Max(left, right));
+                raised[k] = profile[k] - MathF.Min(centre, MathF.Min(left, right)) > 0.02f;
+            }
+
+            edge.Profile = profile;
+            for (int k = 0; k < count - 1; k++)
+            {
+                if (!raised[k] && !raised[k + 1])
+                {
+                    continue;
+                }
+
+                (Vector2 a, Vector2 ta) = edge.Section(k);
+                (Vector2 b, Vector2 tb) = edge.Section(k + 1);
+                for (float s = 0f; s <= 1f; s += 0.25f)
+                {
+                    Vector2 c = Vector2.Lerp(a, b, s);
+                    Vector2 across = MathUtil.Left(Vector2.Lerp(ta, tb, s));
+                    for (float u = -half - 1f; u <= half + 1f; u += 1.5f)
+                    {
+                        Vector2 p = c + (across * u);
+                        _raised.Add(((long)(int)MathF.Floor(p.X / RaisedCell) << 32) ^ (uint)(int)MathF.Floor(p.Y / RaisedCell));
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Height of the carriageway at a point where a road is built up above the ground, otherwise
+    /// <see cref="float.MinValue"/>.
+    /// </summary>
+    public float SurfaceAt(float x, float z)
+    {
+        if (!_raised.Contains(((long)(int)MathF.Floor(x / RaisedCell) << 32) ^ (uint)(int)MathF.Floor(z / RaisedCell)))
+        {
+            return float.MinValue;
+        }
+
+        // Every road that covers the point has a say (a slip road beside a toll road, two streets
+        // at a junction): what one stands on is the highest of them, which is also what one sees.
+        Vector2 p = new(x, z);
+        int cx = (int)MathF.Floor(x / GridCell);
+        int cz = (int)MathF.Floor(z / GridCell);
+        float surface = float.MinValue;
+        for (int gz = cz - 1; gz <= cz + 1; gz++)
+        {
+            for (int gx = cx - 1; gx <= cx + 1; gx++)
+            {
+                if (!_grid.TryGetValue(Key(gx, gz), out List<(int Edge, int Segment)>? bucket))
+                {
+                    continue;
+                }
+
+                foreach ((int edgeId, int segment) in bucket)
+                {
+                    RoadEdge edge = _edges[edgeId];
+                    Vector2 a = edge.Points[segment];
+                    Vector2 b = edge.Points[segment + 1];
+                    float reach = (edge.Width * 0.5f) + 0.3f;
+                    MathUtil.ClosestOnSegment(a, b, p, out Vector2 closest);
+                    if (Vector2.DistanceSquared(p, closest) > (reach + 3f) * (reach + 3f))
+                    {
+                        continue;
+                    }
+
+                    // The road is drawn as two quads per segment, each between two cross-sections
+                    // that turn with the road. Find the quad the point is in, and how far along it.
+                    float[] profile = edge.Profile!;
+                    for (int k = segment * 2; k < (segment * 2) + 2; k++)
+                    {
+                        (Vector2 from, Vector2 fromDirection) = edge.Section(k);
+                        (Vector2 to, Vector2 toDirection) = edge.Section(k + 1);
+                        float past = Vector2.Dot(p - from, fromDirection);
+                        float ahead = Vector2.Dot(to - p, toDirection);
+                        if (past < -0.05f || ahead < -0.05f || past + ahead < 1e-4f)
+                        {
+                            continue;
+                        }
+
+                        float t = Math.Clamp(past / (past + ahead), 0f, 1f);
+                        if (Vector2.DistanceSquared(p, Vector2.Lerp(from, to, t)) <= reach * reach)
+                        {
+                            surface = MathF.Max(surface, MathUtil.Lerp(profile[k], profile[k + 1], t));
+                        }
+                    }
+                }
+            }
+        }
+
+        return surface;
+    }
 
     /// <summary>Nearest road within <paramref name="maxDistance"/> metres, or null.</summary>
     public RoadHit? Nearest(Vector2 p, float maxDistance = 96f, Func<RoadEdge, bool>? filter = null)
