@@ -83,9 +83,39 @@ jobs:
           path: dist/out/*
           if-no-files-found: error
 
+  android:
+    name: android-arm64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Work out the version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ inputs.version || '0.0.0' }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install Android workload
+        run: dotnet workload install android
+      - name: Build Android APK
+        run: |
+          dotnet build src/BarudakBogor.Android/BarudakBogor.Android.csproj -c Release -f net10.0-android -r android-arm64 -p:AndroidBuildApplicationPackage=true -p:ApplicationDisplayVersion=${{ steps.version.outputs.value }}
+          mkdir -p dist/out
+          cp src/BarudakBogor.Android/bin/Release/net10.0-android/android-arm64/*-Signed.apk "dist/out/BarudakBogor-${{ steps.version.outputs.value }}-android-arm64.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BarudakBogor-android-arm64
+          path: dist/out/*
+          if-no-files-found: error
+
   release:
     name: Publish release
-    needs: package
+    needs: [package, android]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -106,6 +136,7 @@ jobs:
             | Linux (64-bit, Vulkan) | `…-linux-x64.deb` or `…-linux-x64.tar.gz` |
             | macOS Apple Silicon | `…-osx-arm64.dmg` |
             | macOS Intel | `…-osx-x64.dmg` |
+            | Android (arm64-v8a) | `…-android-arm64.apk` |
 
             The macOS apps are not notarised: right-click the app and choose Open the first time.
 

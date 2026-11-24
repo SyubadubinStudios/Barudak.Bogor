@@ -17,41 +17,41 @@ ROOT_DIR = os.path.dirname(os.path.dirname(HERE))
 MODELS_DIR = os.path.join(ROOT_DIR, "assets", "models")
 IMAGES_DIR = os.path.join(ROOT_DIR, "docs", "images")
 
-BUDGET = {"vehicle": 2500, "character": 900, "animal": 700, "prop": 600,
-          "building": 2000, "landmark": 2000, "tree": 400}
+BUDGET = {"vehicle": 5500, "character": 1200, "animal": 900, "prop": 1500,
+          "building": 2500, "landmark": 3000, "tree": 1400}
 FAMILY_ORDER = ["vehicle", "character", "animal", "prop", "building", "tree", "landmark"]
 
 # name: (sRGB hex, roughness, metallic, emission strength)
 PALETTE = {
     # generic
-    "glass": ("#2a3644", 0.1, 0.0, 0), "black": ("#141414", 0.8, 0, 0),
-    "rubber": ("#1b1b1d", 0.9, 0, 0), "hub_grey": ("#9a9da3", 0.45, 0.6, 0),
-    "chrome": ("#c8ccd2", 0.25, 0.9, 0), "steel": ("#7d848c", 0.45, 0.7, 0),
-    "iron_dark": ("#26282b", 0.6, 0.6, 0), "aluminium": ("#b9bec4", 0.35, 0.8, 0),
-    "bumper": ("#2b2d30", 0.7, 0, 0), "interior_dark": ("#1d1f24", 0.9, 0, 0),
-    "engine_grey": ("#55595f", 0.6, 0.4, 0), "seat_black": ("#222226", 0.8, 0, 0),
-    "white": ("#ecece6", 0.7, 0, 0), "concrete": ("#b5b3aa", 0.9, 0, 0),
+    "glass": ("#1f2c3a", 0.06, 0.12, 0), "black": ("#141414", 0.78, 0, 0),
+    "rubber": ("#191a1c", 0.92, 0, 0), "hub_grey": ("#b4b8bf", 0.3, 0.78, 0),
+    "chrome": ("#d8dce2", 0.18, 0.95, 0), "steel": ("#808890", 0.4, 0.75, 0),
+    "iron_dark": ("#26282b", 0.55, 0.65, 0), "aluminium": ("#c4c9d0", 0.28, 0.85, 0),
+    "bumper": ("#282a2e", 0.65, 0.08, 0), "interior_dark": ("#181a1f", 0.92, 0, 0),
+    "engine_grey": ("#55595f", 0.55, 0.45, 0), "seat_black": ("#222226", 0.82, 0, 0),
+    "white": ("#ecece6", 0.65, 0, 0), "concrete": ("#b5b3aa", 0.9, 0, 0),
     "concrete_white": ("#e6e3d8", 0.85, 0, 0), "asphalt": ("#3a3b3e", 0.95, 0, 0),
-    "red": ("#c22a25", 0.6, 0, 0), "yellow": ("#e8b923", 0.6, 0, 0),
-    "blue": ("#2468b4", 0.6, 0, 0), "orange": ("#e07a1f", 0.7, 0, 0),
-    "gold": ("#d9a520", 0.3, 0.9, 0), "brass": ("#b8892b", 0.4, 0.8, 0),
+    "red": ("#c22a25", 0.55, 0, 0), "yellow": ("#e8b923", 0.55, 0, 0),
+    "blue": ("#2468b4", 0.55, 0, 0), "orange": ("#e07a1f", 0.65, 0, 0),
+    "gold": ("#d9a520", 0.25, 0.92, 0), "brass": ("#b8892b", 0.35, 0.82, 0),
     # emissive
-    "emit_headlight": ("#fff3c4", 0.3, 0, 3.0), "emit_taillight": ("#ff2a1a", 0.3, 0, 1.5),
-    "emit_lamp": ("#ffe3a0", 0.3, 0, 5.0), "emit_sign": ("#ffe45c", 0.4, 0, 1.5),
+    "emit_headlight": ("#fff4cc", 0.18, 0, 3.0), "emit_taillight": ("#ff2418", 0.2, 0, 1.8),
+    "emit_lamp": ("#ffe3a0", 0.25, 0, 5.0), "emit_sign": ("#ffe45c", 0.35, 0, 1.5),
     "emit_window_eerie": ("#b6d67a", 0.4, 0, 1.2),
     # vehicles
-    "angkot_green": ("#1f9a45", 0.5, 0.1, 0), "angkot_stripe": ("#bfe86a", 0.5, 0.1, 0),
-    "car_silver": ("#c3c7cc", 0.35, 0.3, 0), "bajaj_blue": ("#1f6fd0", 0.5, 0.1, 0),
-    "canvas_black": ("#232326", 0.9, 0, 0), "moto_red": ("#c8281f", 0.4, 0.2, 0),
-    "pickup_white": ("#e4e5e2", 0.5, 0.1, 0), "pickup_blue": ("#2c4f9e", 0.5, 0.1, 0),
-    "sign_yellow": ("#f4c81e", 0.6, 0, 0), "sign_red": ("#d2281e", 0.6, 0, 0),
-    "tarp_blue": ("#2f6fc4", 0.8, 0, 0), "tarp_orange": ("#e2681c", 0.8, 0, 0),
+    "angkot_green": ("#1c8f40", 0.3, 0.18, 0), "angkot_stripe": ("#c4ec6c", 0.35, 0.12, 0),
+    "car_silver": ("#c7ccd2", 0.22, 0.48, 0), "bajaj_blue": ("#1c68c8", 0.34, 0.18, 0),
+    "canvas_black": ("#232326", 0.9, 0, 0), "moto_red": ("#c8221a", 0.24, 0.28, 0),
+    "pickup_white": ("#e6e7e4", 0.32, 0.15, 0), "pickup_blue": ("#264896", 0.32, 0.2, 0),
+    "sign_yellow": ("#f4c81e", 0.5, 0, 0), "sign_red": ("#d2281e", 0.5, 0, 0),
+    "tarp_blue": ("#2f6fc4", 0.82, 0, 0), "tarp_orange": ("#e2681c", 0.82, 0, 0),
     "tofu": ("#c98d3a", 0.8, 0, 0), "bakso": ("#b9a595", 0.8, 0, 0),
-    "broth": ("#a4712c", 0.4, 0, 0), "cart_green": ("#2f8f5a", 0.7, 0, 0),
-    "cart_blue": ("#3277b8", 0.7, 0, 0), "cart_yellow": ("#e9c53a", 0.7, 0, 0),
-    "delman_red": ("#a5261f", 0.6, 0, 0), "delman_green": ("#1f5a35", 0.7, 0, 0),
-    "taxi_blue": ("#a6dcf5", 0.4, 0.2, 0), "bemo_blue": ("#74bde8", 0.5, 0.1, 0),
-    "truck_yellow": ("#e6b422", 0.5, 0.1, 0), "truck_green": ("#2a7a48", 0.75, 0, 0),
+    "broth": ("#a4712c", 0.35, 0, 0), "cart_green": ("#2f8f5a", 0.65, 0, 0),
+    "cart_blue": ("#3277b8", 0.65, 0, 0), "cart_yellow": ("#e9c53a", 0.65, 0, 0),
+    "delman_red": ("#a5261f", 0.5, 0.08, 0), "delman_green": ("#1f5a35", 0.65, 0, 0),
+    "taxi_blue": ("#8cd0f0", 0.26, 0.28, 0), "bemo_blue": ("#68b6e4", 0.35, 0.18, 0),
+    "truck_yellow": ("#e6b01c", 0.36, 0.15, 0), "truck_green": ("#2a7a48", 0.72, 0, 0),
     # wood / nature
     "wood": ("#8a5a2f", 0.85, 0, 0), "wood_dark": ("#55361c", 0.9, 0, 0),
     "wood_light": ("#b98d55", 0.85, 0, 0), "bamboo": ("#a9b25a", 0.7, 0, 0),
@@ -345,10 +345,17 @@ class Asset:
             p.pivot *= s
 
     # ---- wheels -------------------------------------------------------------
-    def wheel(self, name, pos, r, w, hub="hub_grey", segs=10):
+    def wheel(self, name, pos, r, w, hub="hub_grey", segs=16):
         P = self.part(name, pivot=pos)
-        P.cyl("rubber", pos, r, w, axis="x", segs=segs)
-        P.cyl(hub, pos, r * 0.55, w + 0.02, axis="x", segs=8)
+        # Main rubber tyre with slightly narrower shoulder bevels
+        P.cyl("rubber", pos, r, w * 0.82, axis="x", segs=segs)
+        P.cyl("rubber", pos, r * 0.94, w, axis="x", segs=segs)
+        # Recessed alloy rim & 5 spokes
+        P.cyl("iron_dark", pos, r * 0.62, w + 0.01, axis="x", segs=12)
+        P.cyl(hub, pos, r * 0.56, w + 0.018, axis="x", segs=12)
+        for i in range(5):
+            P.box("chrome", pos, (w + 0.028, r * 0.98, r * 0.11), rot=(36.0 * i, 0, 0))
+        P.cyl("chrome", pos, r * 0.18, w + 0.036, axis="x", segs=8)
         return P
 
     def spoked_wheel(self, name, pos, r, w=0.05, rim="wood_dark", spoke="wood", n=4, segs=12):

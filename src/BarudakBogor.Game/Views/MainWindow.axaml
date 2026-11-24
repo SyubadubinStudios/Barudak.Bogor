@@ -1,12 +1,9 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:r="clr-namespace:BarudakBogor.Game.Rendering"
-        xmlns:v="clr-namespace:BarudakBogor.Game.Views"
-        x:Class="BarudakBogor.Game.Views.MainWindow"
-        Title="Barudak Bogor"
-        Width="1280" Height="720" MinWidth="960" MinHeight="600"
-        WindowStartupLocation="CenterScreen"
-        Background="{StaticResource Asphalt}">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:r="clr-namespace:BarudakBogor.Game.Rendering"
+             xmlns:v="clr-namespace:BarudakBogor.Game.Views"
+             x:Class="BarudakBogor.Game.Views.MainView"
+             Background="{StaticResource Asphalt}">
 
   <Grid>
     <r:GameViewport x:Name="Viewport" />
@@ -112,6 +109,48 @@
           <TextBlock x:Name="BannerDetail" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" />
         </StackPanel>
       </Border>
+    </Grid>
+
+    <!-- ============================== Touch Controls (Android) ============================== -->
+    <Grid x:Name="TouchControls" IsVisible="False" Margin="20">
+      <!-- Top-center Menu / Map button -->
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top" Spacing="10">
+        <Button x:Name="TouchMenuButton" Classes="plate small" Content="MENU / PETA" Opacity="0.88" />
+        <Button x:Name="TouchViewButton" Classes="plate small" Content="KAMERA" Opacity="0.88" />
+      </StackPanel>
+
+      <!-- Left virtual thumbstick (above minimap or lower-left) -->
+      <Border x:Name="TouchStickArea" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="220,0,0,18"
+              Width="156" Height="156" CornerRadius="78"
+              Background="#4412181C" BorderBrush="#99F6ECCB" BorderThickness="3">
+        <Canvas Width="150" Height="150">
+          <Border x:Name="TouchStickKnob" Width="62" Height="62" CornerRadius="31"
+                  Canvas.Left="44" Canvas.Top="44"
+                  Background="#CC238A4B" BorderBrush="{StaticResource Cream}" BorderThickness="2"
+                  IsHitTestVisible="False" />
+        </Canvas>
+      </Border>
+
+      <!-- Right action buttons -->
+      <Grid HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,12,110"
+            RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+        <Border x:Name="TouchInteractPad" Grid.Row="0" Grid.Column="0" Width="76" Height="76" CornerRadius="38"
+                Background="#CCE8B43A" BorderBrush="{StaticResource Cream}" BorderThickness="2">
+          <TextBlock Classes="display" Text="AKSI" FontSize="18" Foreground="{StaticResource Asphalt}" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+        </Border>
+        <Border x:Name="TouchHornPad" Grid.Row="0" Grid.Column="1" Width="70" Height="70" CornerRadius="35"
+                Background="#AA1E272E" BorderBrush="#BBF6ECCB" BorderThickness="2">
+          <TextBlock Classes="display" Text="TIN!" FontSize="16" Foreground="{StaticResource Cream}" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+        </Border>
+        <Border x:Name="TouchJumpPad" Grid.Row="1" Grid.Column="0" Width="76" Height="76" CornerRadius="38"
+                Background="#AA1E272E" BorderBrush="#BBF6ECCB" BorderThickness="2">
+          <TextBlock x:Name="TouchJumpLabel" Classes="display" Text="LOMPAT" FontSize="15" Foreground="{StaticResource Cream}" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+        </Border>
+        <Border x:Name="TouchRunPad" Grid.Row="1" Grid.Column="1" Width="82" Height="82" CornerRadius="41"
+                Background="#CC238A4B" BorderBrush="{StaticResource Cream}" BorderThickness="2">
+          <TextBlock x:Name="TouchRunLabel" Classes="display" Text="LARI" FontSize="17" Foreground="{StaticResource Cream}" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False" />
+        </Border>
+      </Grid>
     </Grid>
 
     <!-- ============================== Dialogue ============================== -->
@@ -316,4 +355,4 @@
       </Grid>
     </Grid>
   </Grid>
-</Window>
+</UserControl>

@@ -16,7 +16,7 @@ public sealed class Settings
 {
     public Language Language { get; set; } = Language.Indonesia;
 
-    public Quality Quality { get; set; } = Quality.Sedang;
+    public Quality Quality { get; set; } = OperatingSystem.IsAndroid() ? Quality.Hemat : Quality.Sedang;
 
     public float Volume { get; set; } = 0.8f;
 

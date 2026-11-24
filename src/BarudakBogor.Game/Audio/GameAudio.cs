@@ -35,6 +35,13 @@ public sealed class GameAudio : IDisposable
 
     public GameAudio()
     {
+        if (OperatingSystem.IsAndroid())
+        {
+            // ThreeNet 0.12.2's Rust audio backend (oboe/ndk-context) aborts on Android without JNI context init.
+            Unavailable = "Android audio disabled";
+            return;
+        }
+
         try
         {
             _engine = AudioEngine.Open();

@@ -4,16 +4,21 @@ from common import asset, quadruped
 
 
 def greenhouse(P, paint, fb, ft, rt, rb, wb, wt, pillars=(), roof_t=0.05):
-    """Glass cabin with painted roof and pillars. fb/ft/rt/rb = (y, z) of front-base,
+    """Glass cabin with painted roof, pillars, and wipers. fb/ft/rt/rb = (y, z) of front-base,
     front-top, rear-top, rear-base; wb/wt = width at belt line / roof."""
     P.prism("glass", [(fb[0], fb[1], wb), (rb[0], rb[1], wb), (rt[0], rt[1], wt), (ft[0], ft[1], wt)])
-    P.prism(paint, [(ft[0] - 0.04, ft[1] - 0.01, wt + 0.05), (rt[0] + 0.04, rt[1] - 0.01, wt + 0.05),
-                    (rt[0] + 0.02, rt[1] + roof_t, wt - 0.02), (ft[0] - 0.02, ft[1] + roof_t, wt - 0.02)])
+    P.prism(paint, [(ft[0] - 0.05, ft[1] - 0.01, wt + 0.06), (rt[0] + 0.05, rt[1] - 0.01, wt + 0.06),
+                    (rt[0] + 0.02, rt[1] + roof_t, wt - 0.04), (ft[0] - 0.02, ft[1] + roof_t, wt - 0.04)])
     for sx in (-1, 1):
-        P.limb(paint, (sx * wb / 2, fb[0], fb[1]), (sx * wt / 2, ft[0], ft[1]), 0.04, segs=4)
-        P.limb(paint, (sx * wb / 2, rb[0], rb[1]), (sx * wt / 2, rt[0], rt[1]), 0.04, segs=4)
+        P.limb(paint, (sx * wb / 2, fb[0], fb[1]), (sx * wt / 2, ft[0], ft[1]), 0.042, segs=6)
+        P.limb(paint, (sx * wb / 2, rb[0], rb[1]), (sx * wt / 2, rt[0], rt[1]), 0.042, segs=6)
         for y in pillars:
-            P.limb(paint, (sx * wb / 2, y, fb[1]), (sx * wt / 2, y, ft[1]), 0.04, segs=4)
+            P.limb(paint, (sx * wb / 2, y, fb[1]), (sx * wt / 2, y, ft[1]), 0.04, segs=6)
+    # Windshield wipers at the base of the front glass
+    wy = fb[0] + (ft[0] - fb[0]) * 0.08 - 0.015
+    wz = fb[1] + (ft[1] - fb[1]) * 0.08
+    for sx in (-0.28, 0.16):
+        P.limb("black", (sx * wb, wy, wz), ((sx + 0.22) * wb, wy + (ft[0] - fb[0]) * 0.18, wz + (ft[1] - fb[1]) * 0.18), 0.01, segs=4)
 
 
 def wheels4(A, W, yf, yr, r=0.28, w=0.18, arch=0.03):
@@ -24,24 +29,42 @@ def wheels4(A, W, yf, yr, r=0.28, w=0.18, arch=0.03):
     A.wheel("wheel_rr", (-x, yr, r), r, w)
     B = A.get("body")
     for y in (yf, yr):
-        B.cyl("black", (0, y, r + arch), r + 0.08, W + 0.012, axis="x", segs=10)
+        B.cyl("black", (0, y, r + arch), r + 0.085, W + 0.014, axis="x", segs=14)
 
 
 def lights(B, W, yf, yr, z=0.68, zr=0.75, plate=True):
     for sx in (-1, 1):
-        B.box("emit_headlight", (sx * (W / 2 - 0.22), yf - 0.005, z), (0.26, 0.03, 0.14))
-        B.box("emit_taillight", (sx * (W / 2 - 0.12), yr + 0.005, zr), (0.14, 0.03, 0.22))
-    B.box("black", (0, yf - 0.005, z), (W - 0.75, 0.03, 0.12))
-    B.box("bumper", (0, yf - 0.02, z - 0.28), (W + 0.02, 0.1, 0.16))
-    B.box("bumper", (0, yr + 0.02, z - 0.28), (W + 0.02, 0.1, 0.16))
+        # Headlight housing + chrome bezel + amber turn signal
+        B.box("chrome", (sx * (W / 2 - 0.22), yf - 0.002, z), (0.3, 0.025, 0.17))
+        B.box("emit_headlight", (sx * (W / 2 - 0.2), yf - 0.01, z), (0.22, 0.025, 0.13))
+        B.box("orange", (sx * (W / 2 - 0.07), yf - 0.01, z), (0.06, 0.025, 0.13))
+        # Taillight cluster: red brake + amber turn
+        B.box("black", (sx * (W / 2 - 0.12), yr + 0.002, zr), (0.17, 0.025, 0.26))
+        B.box("emit_taillight", (sx * (W / 2 - 0.12), yr + 0.01, zr + 0.03), (0.14, 0.025, 0.15))
+        B.box("orange", (sx * (W / 2 - 0.12), yr + 0.01, zr - 0.08), (0.14, 0.025, 0.06))
+        # Fog light / bumper reflector
+        B.box("emit_headlight", (sx * (W / 2 - 0.22), yf - 0.075, z - 0.28), (0.14, 0.015, 0.06))
+        B.box("sign_red", (sx * (W / 2 - 0.22), yr + 0.075, z - 0.28), (0.14, 0.015, 0.05))
+    # Front grille with chrome slats
+    B.box("black", (0, yf - 0.005, z), (W - 0.72, 0.03, 0.14))
+    for dz in (-0.035, 0.0, 0.035):
+        B.box("chrome", (0, yf - 0.02, z + dz), (W - 0.78, 0.012, 0.014))
+    # Sculpted bumpers with lower lip
+    B.box("bumper", (0, yf - 0.02, z - 0.28), (W + 0.04, 0.12, 0.17))
+    B.box("bumper", (0, yr + 0.02, z - 0.28), (W + 0.04, 0.12, 0.17))
     if plate:
-        B.box("white", (0, yf - 0.075, z - 0.28), (0.34, 0.01, 0.1))
-        B.box("white", (0, yr + 0.075, z - 0.28), (0.34, 0.01, 0.1))
+        # Indonesian black plate with white lettering strip
+        B.box("black", (0, yf - 0.082, z - 0.28), (0.38, 0.012, 0.11))
+        B.box("white", (0, yf - 0.089, z - 0.28), (0.3, 0.006, 0.05))
+        B.box("black", (0, yr + 0.082, z - 0.28), (0.38, 0.012, 0.11))
+        B.box("white", (0, yr + 0.089, z - 0.28), (0.3, 0.006, 0.05))
 
 
 def mirrors(B, W, y, z):
     for sx in (-1, 1):
-        B.box("black", (sx * (W / 2 + 0.07), y, z), (0.12, 0.04, 0.14))
+        B.limb("black", (sx * (W / 2), y, z - 0.02), (sx * (W / 2 + 0.07), y, z), 0.015, segs=4)
+        B.box("black", (sx * (W / 2 + 0.085), y, z), (0.12, 0.05, 0.14))
+        B.box("chrome", (sx * (W / 2 + 0.085), y + 0.026, z), (0.1, 0.006, 0.12))
 
 
 @asset("angkot", "vehicle", center=True)

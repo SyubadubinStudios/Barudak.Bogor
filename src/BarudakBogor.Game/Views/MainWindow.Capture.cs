@@ -16,7 +16,7 @@ namespace BarudakBogor.Game.Views;
 /// scripted run through the game, saves a picture of the window at each stop and exits. The
 /// shots come from the real game loop, so the docs can never show something the game cannot do.
 /// </summary>
-public partial class MainWindow
+public partial class MainView
 {
     private sealed record Shot(string Name, float Seconds, Action Setup);
 
@@ -704,7 +704,7 @@ public partial class MainWindow
             _tab = PauseTab.Career;
             RefreshPause();
         }));
-        if (Program.CaptureOnly.Length > 0)
+        if (LaunchOptions.CaptureOnly.Length > 0)
         {
             FilterShots();
             return;
@@ -720,12 +720,12 @@ public partial class MainWindow
     /// <summary>Cuts the tour down to the stops named with <c>--only</c>, after a first stop that starts a game.</summary>
     private void FilterShots()
     {
-        if (Program.CaptureOnly.Length == 0)
+        if (LaunchOptions.CaptureOnly.Length == 0)
         {
             return;
         }
 
-        Shot[] wanted = [.. _shots.Where(shot => Program.CaptureOnly.Contains(shot.Name))];
+        Shot[] wanted = [.. _shots.Where(shot => LaunchOptions.CaptureOnly.Contains(shot.Name))];
         _shots.Clear();
         _shots.Enqueue(new Shot("mulai", 0.5f, () =>
         {
@@ -753,7 +753,7 @@ public partial class MainWindow
             {
                 _captureDirectory = null;
                 _screen = Screen.Title;
-                Close();
+                RequestClose();
                 return;
             }
 

@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>BarudakBogor</AssemblyName>
+    <RootNamespace>BarudakBogor.Game</RootNamespace>
+    <ApplicationId>com.syubadubin.barudakbogor</ApplicationId>
+    <ApplicationTitle>Barudak Bogor</ApplicationTitle>
+    <ApplicationVersion>4</ApplicationVersion>
+    <ApplicationDisplayVersion>0.4.0</ApplicationDisplayVersion>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidStripILAfterAOT>true</AndroidStripILAfterAOT>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Prevent Android global usings from colliding with Avalonia/Game types (Application, Button, Activity, Dialog). -->
+    <Using Remove="Android.App" />
+    <Using Remove="Android.Widget" />
+    <Using Remove="Android.Content" />
+    <Using Remove="Android.OS" />
+    <Using Remove="Android.Runtime" />
+    <Using Remove="Android.Views" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Android" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="System.IO.Hashing" Version="11.0.0" />
+    <PackageReference Include="ThreeNet" Version="0.12.2" />
+    <PackageReference Include="ThreeNet.Native" Version="0.12.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BarudakBogor.Core\BarudakBogor.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\BarudakBogor.Game\**\*.cs"
+             Exclude="..\BarudakBogor.Game\Program.cs;..\BarudakBogor.Game\obj\**;..\BarudakBogor.Game\bin\**"
+             Link="%(RecursiveDir)%(Filename)%(Extension)" />
+    <AvaloniaXaml Include="..\BarudakBogor.Game\**\*.axaml"
+                  Exclude="..\BarudakBogor.Game\obj\**;..\BarudakBogor.Game\bin\**"
+                  Link="%(RecursiveDir)%(Filename)%(Extension)" />
+    <AvaloniaResource Include="..\BarudakBogor.Game\Assets\Fonts\*.ttf" Link="Assets\Fonts\%(Filename)%(Extension)" />
+    <AvaloniaResource Include="..\..\assets\art\*.jpg;..\..\assets\art\icon_256.png" Link="Assets\Art\%(Filename)%(Extension)" />
+    <AndroidAsset Include="..\..\assets\models\*.glb" Link="Assets\Models\%(Filename)%(Extension)" />
+    <AndroidAsset Include="..\..\assets\art\billboard_*.jpg" Link="Assets\Art\%(Filename)%(Extension)" />
+    <AndroidResource Include="..\..\assets\art\icon_256.png" Link="Resources\drawable\icon.png" />
+  </ItemGroup>
+
+</Project>

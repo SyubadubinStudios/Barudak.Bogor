@@ -39,9 +39,9 @@ Status per fase: ✅ selesai · 🟡 sebagian · ⬜ belum. Catatan harian ada d
 - ✅ Air sungai dan kolam lebih realistis: shader riak mengalir, kedalaman, buih, Fresnel, cincin hujan; tepian berlumpur dan batu sungai. Tepi air halus: medan di sekitar sungai dan kolam digambar dengan kisi 2 m, dan `Terrain.HeightAt` membaca bentuk yang sama.
 - 🟡 Interior: warung bandrek dan kontrakan Ujang bisa dimasuki (dinding, pintu, perabot, tabrakan); kokpit untuk kendaraan tertutup (dasbor, setir, pilar). Kamera belakang belum menyesuaikan diri di dalam ruangan: pakai kamera orang pertama (V). Angkot belum punya kabin penumpang.
 - 🟡 Rig tulang dan animasi Blender: karakter pemain (lima tokoh utama) kini satu mesh berkulit di atas 12 tulang dengan sepuluh klip buatan `rig_bones.py`: diam, jalan, lari, duduk, lompat, berenang, mengapung, memancing, badminton, dan bernyanyi. Lompat mengikuti kecepatan naik-turun pemain; berenang dan mengapung dipakai di air; tiga yang terakhir dipakai di mini game-nya. Belum ada joran, raket, atau mikrofon di tangan. Warga dan pemberi misi masih potongan tubuh yang diayun kode (satu mesh berkulit per orang terlalu mahal untuk kerumunan); bola sendi bahunya sudah dinaikkan sejajar bahu.
-- ✅ NPC dengan jadwal harian, payung saat hujan, celetukan acak.
-- ✅ Lalu lintas yang tertib: kendaraan mengantre di belakang yang lebih lambat, menyalip yang berhenti atau lamban bila lajur lawan kosong, bergantian di persimpangan, dan tidak pernah melangkah ke dalam kendaraan lain (diuji `TrafficNeverDrivesThroughItself`). Lampu merah di simpang jalan raya dalam kota bergiliran per lengan dan dipatuhi (`TrafficStopsAtARedLight`).
-- ✅ Kehidupan jalanan: pedagang kaki lima berpikulan, polisi, PNS, badut, pengamen, dan anak punk di antara warga; kawanan merpati yang terbang saat didekati, monyet di Kebun Raya, ayam di kampung; lampu merah, tiang CCTV, spanduk dan light box toko bertulisan, videotron dengan iklan bergantian.
+- ✅ NPC dengan jadwal harian per distrik, sensitivitas cuaca & mati lampu, payung dan perilaku berteduh saat hujan deras, celetukan acak.
+- ✅ Lalu lintas yang tertib: kendaraan mengantre di belakang yang lebih lambat, menyalip yang berhenti atau lamban bila lajur lawan kosong, bergantian di persimpangan, tidak pernah melangkah ke dalam kendaraan lain (diuji `TrafficNeverDrivesThroughItself`), melambat saat hujan/kabut, dan menyalakan lampu otomatis. Lampu merah di simpang jalan raya dalam kota bergiliran per lengan dan dipatuhi (`TrafficStopsAtARedLight`).
+- ✅ Kehidupan jalanan: pedagang kaki lima berpikulan, polisi (mengatur lalu lintas), PNS, badut (melambai), pengamen (bermain gitar), dan anak punk di antara warga; kawanan merpati yang terbang saat didekati, monyet di Kebun Raya, ayam di kampung; lampu merah, tiang CCTV, spanduk dan light box toko bertulisan, videotron dengan iklan bergantian.
 - ✅ Kehidupan air: ikan mas, kura-kura, dan bebek di setiap kolam; ikan, kura-kura, bebek, dan sesekali buaya pemalas di Ciliwung dan Cisadane. Semuanya menjauh bila didekati dan tidak pernah keluar dari air (`WaterAnimalsLiveInTheWaterAndStayThere`). Teratai dan eceng gondok mengapung di kolam dan tepi sungai, gelagah tumbuh di tepiannya (`PlaceWaterPlants`).
   - ⬜ Ikan yang berenang belum terhubung dengan mini game memancing, buaya hanya hanyut dan menjauh, dan tumbuhan air tidak bergoyang.
   - ⬜ Warga jalanan baru berjalan dan berdiri saja: pengamen belum bernyanyi, polisi belum mengatur lalu lintas, PKL belum bisa dibeli dagangannya. Pejalan kaki dan pemain tidak terikat lampu merah.
@@ -59,7 +59,7 @@ Status per fase: ✅ selesai · 🟡 sebagian · ⬜ belum. Catatan harian ada d
 ## Fase 4 — Platform ⬜
 
 - 🟡 Linux dan macOS: paket dibuat oleh CI, belum diuji di perangkat sungguhan.
-- ⬜ Android dan iOS: kontrol sentuh, kualitas khusus mobile.
+- 🟡 Android: proyek `BarudakBogor.Android` (`arm64-v8a`, Vulkan, kontrol sentuh, default kualitas Hemat) sudah berjalan di perangkat nyata; audio Android masih menunggu inisialisasi `ndk-context` di Three.Net. iOS belum.
 - ⬜ Konsol (Xbox, PlayStation): membutuhkan SDK dan lisensi pihak pertama.
 - ✅ CI rilis: installer Windows, `.deb`/`.tar.gz` Linux, `.dmg` macOS.
 - ⬜ Tanda tangan kode Windows dan notarisasi macOS (butuh sertifikat berbayar milik studio).

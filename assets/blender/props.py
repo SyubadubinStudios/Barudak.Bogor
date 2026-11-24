@@ -81,61 +81,75 @@ def gerbang_kebun_raya(A):
 @asset("pohon_beringin", "tree")
 def pohon_beringin(A):
     B = A.part("body")
-    B.limb("bark", (0, 0, 0), (0, 0, 5.6), 1.15, 0.85, segs=8)
-    for i, p in enumerate(ring(4, 2.6, 0.0, 0.3)):
-        B.limb("bark", (p.x * 0.2, p.y * 0.2, 2.0), tuple(p), 0.5, 0.16, segs=4)
-    for i, p in enumerate(ring(3, 3.4, 7.6, 0.9)):
-        B.limb("bark", (0, 0, 5.2), tuple(p), 0.5, 0.25, segs=4)
-    for i, p in enumerate(ring(5, 4.3, 0.0, 0.1)):
-        q = V(p.x * (0.8 + 0.25 * (i % 2)), p.y * (0.8 + 0.25 * (i % 2)), 0)
-        B.limb("bark_light", (q.x, q.y, 6.8), (q.x * 1.02, q.y * 1.02, 0), 0.07, 0.05, segs=4)
-    B.sphere("leaf", (0, 0, 10.2), 4.8, segs=7, rings=4, scale=(1.15, 1.15, 0.78), smooth=False)
-    for i, p in enumerate(ring(4, 4.3, 8.4, 0.5)):
-        B.sphere("leaf_dark" if i % 2 else "leaf", tuple(p), 3.3, segs=6, rings=4,
-                 scale=(1, 1, 0.72), rot=(0, 0, 25 * i), smooth=False)
-    B.sphere("leaf_light", (0.8, -0.6, 12.4), 2.4, segs=6, rings=4, scale=(1.2, 1.2, 0.66), smooth=False)
+    # Gnarled main trunk + flaring buttress roots
+    B.limb("bark", (0, 0, 0), (0, 0, 5.8), 1.25, 0.82, segs=10)
+    for i, p in enumerate(ring(6, 2.7, 0.0, 0.25)):
+        B.limb("bark", (p.x * 0.22, p.y * 0.22, 2.3), tuple(p), 0.46, 0.15, segs=5)
+    # Major spreading boughs
+    for i, p in enumerate(ring(5, 4.0, 7.8, 0.4)):
+        B.limb("bark", (0, 0, 5.0), tuple(p), 0.48, 0.22, segs=5)
+        B.limb("bark", tuple(p), (p.x * 1.45, p.y * 1.45, 9.2), 0.22, 0.11, segs=4)
+    # Iconic Bogor banyan hanging aerial roots
+    for i, p in enumerate(ring(8, 4.4, 0.0, 0.15)):
+        q = V(p.x * (0.75 + 0.3 * (i % 2)), p.y * (0.75 + 0.3 * (i % 2)), 0)
+        bottom_z = 0.0 if i % 2 == 0 else 2.2
+        B.limb("bark_light", (q.x, q.y, 7.2), (q.x * 1.03, q.y * 1.03, bottom_z), 0.065, 0.04, segs=4)
+    # Lush multi-layered canopy domes
+    B.sphere("leaf_dark", (0, 0, 9.6), 4.6, segs=9, rings=6, scale=(1.22, 1.22, 0.68), smooth=False)
+    B.sphere("leaf", (0, 0, 10.9), 4.2, segs=9, rings=6, scale=(1.15, 1.15, 0.72), smooth=False)
+    for i, p in enumerate(ring(6, 4.5, 8.8 + (i % 2) * 0.7, 0.35)):
+        mat = ("leaf_dark", "leaf", "leaf_light")[i % 3]
+        B.sphere(mat, tuple(p), 2.9 + (i % 2) * 0.45, segs=8, rings=5,
+                 scale=(1.1, 1.0, 0.68), rot=(0, 0, 30 * i), smooth=False)
+    B.sphere("leaf_light", (1.1, -0.8, 12.9), 2.6, segs=8, rings=5, scale=(1.25, 1.15, 0.6), smooth=False)
+    B.sphere("leaf_light", (-1.4, 1.0, 12.2), 2.2, segs=8, rings=5, scale=(1.15, 1.2, 0.58), smooth=False)
 
 
 @asset("pohon_kelapa", "tree")
 def pohon_kelapa(A):
     B = A.part("body")
-    pts = [V(0, 0, 0), V(0.25, 0, 2.8), V(0.6, 0, 5.6), V(0.8, 0, 8.0)]
-    rr = [0.24, 0.19, 0.16, 0.13]
-    for i in range(3):
-        B.limb("bark_light", tuple(pts[i]), tuple(pts[i + 1]), rr[i], rr[i + 1], segs=6)
+    pts = [V(0, 0, 0), V(0.22, 0.05, 2.2), V(0.52, 0.08, 4.6), V(0.76, 0.05, 6.8), V(0.85, 0, 8.6)]
+    rr = [0.27, 0.21, 0.17, 0.14, 0.12]
+    for i in range(len(pts) - 1):
+        B.limb("bark_light" if i % 2 == 0 else "bark", tuple(pts[i]), tuple(pts[i + 1]), rr[i], rr[i + 1], segs=8)
     T = pts[-1]
-    B.sphere("leaf_dark", tuple(T), 0.3, segs=5, rings=3, smooth=False)
-    for i in range(8):
-        a = 2 * math.pi * i / 8 + 0.2
+    B.sphere("leaf_dark", tuple(T), 0.32, segs=7, rings=4, smooth=False)
+    for i in range(10):
+        a = 2 * math.pi * i / 10 + 0.15
         d = V(math.cos(a), math.sin(a), 0)
-        lift = 0.9 if i % 2 else 0.45
-        m = T + d * 1.7 + V(0, 0, lift)
-        e = T + d * 3.2 + V(0, 0, lift - 1.3)
-        B.blade("leaf", tuple(T), tuple(m), 0.35, 0.8, 0.04)
-        B.blade("leaf", tuple(m), tuple(e), 0.8, 0.1, 0.04)
-    for i in range(3):
-        a = 2 * math.pi * i / 3
-        B.sphere("coconut", (T.x + 0.26 * math.cos(a), T.y + 0.26 * math.sin(a), T.z - 0.28), 0.17, segs=5, rings=3)
+        lift = 1.05 if i % 2 else 0.45
+        m = T + d * 1.85 + V(0, 0, lift)
+        e = T + d * 3.55 + V(0, 0, lift - 1.55)
+        mat = "leaf_light" if i % 2 else "leaf"
+        B.blade(mat, tuple(T), tuple(m), 0.36, 0.85, 0.04)
+        B.blade(mat, tuple(m), tuple(e), 0.85, 0.08, 0.04)
+    for i in range(4):
+        a = 2 * math.pi * i / 4
+        B.sphere("coconut", (T.x + 0.26 * math.cos(a), T.y + 0.26 * math.sin(a), T.z - 0.28), 0.17, segs=6, rings=4)
 
 
 @asset("pohon_pinus", "tree")
 def pohon_pinus(A):
     B = A.part("body")
-    B.limb("bark", (0, 0, 0), (0, 0, 11.0), 0.24, 0.08, segs=5)
-    for i, (z, r, h) in enumerate(((3.0, 2.3, 3.2), (5.2, 1.9, 2.9), (7.2, 1.45, 2.7), (9.1, 1.0, 2.9))):
-        B.cyl("pine_green" if i % 2 == 0 else "leaf_dark", (0, 0, z + h / 2), r, h, r2=0.0, segs=7,
-              rot=(0, 0, 25 * i), smooth=False)
+    B.limb("bark", (0, 0, 0), (0, 0, 11.4), 0.26, 0.07, segs=7)
+    tiers = ((2.6, 2.5, 2.8), (4.4, 2.15, 2.7), (6.1, 1.75, 2.5), (7.7, 1.35, 2.4), (9.3, 0.95, 2.6))
+    for i, (z, r, h) in enumerate(tiers):
+        B.cyl("pine_green" if i % 2 == 0 else "leaf_dark", (0, 0, z + h / 2), r, h, r2=0.0, segs=9,
+              rot=(0, 0, 22 * i), smooth=False)
 
 
 @asset("pohon_kecil", "tree")
 def pohon_kecil(A):
     B = A.part("body")
-    B.limb("bark", (0, 0, 0), (0, 0, 2.6), 0.14, 0.09, segs=5)
-    B.limb("bark", (0, 0, 2.2), (0.6, 0.15, 3.0), 0.07, 0.04, segs=4)
-    B.limb("bark", (0, 0, 2.3), (-0.5, -0.2, 3.1), 0.07, 0.04, segs=4)
-    B.sphere("leaf", (0, 0, 3.8), 1.45, segs=6, rings=4, scale=(1, 1, 0.82), smooth=False)
-    B.sphere("leaf_light", (0.8, 0.2, 3.3), 0.95, segs=6, rings=4, scale=(1, 1, 0.8), rot=(0, 0, 30), smooth=False)
-    B.sphere("leaf_dark", (-0.7, -0.3, 3.35), 1.05, segs=6, rings=4, scale=(1, 1, 0.8), rot=(0, 0, 50), smooth=False)
+    B.limb("bark", (0, 0, 0), (0, 0, 2.7), 0.16, 0.09, segs=7)
+    B.limb("bark", (0, 0, 2.1), (0.7, 0.2, 3.1), 0.075, 0.04, segs=5)
+    B.limb("bark", (0, 0, 2.2), (-0.65, -0.25, 3.2), 0.075, 0.04, segs=5)
+    B.limb("bark", (0, 0, 2.3), (0.1, -0.6, 3.0), 0.065, 0.035, segs=5)
+    B.sphere("leaf", (0, 0, 4.0), 1.5, segs=8, rings=5, scale=(1.1, 1.05, 0.8), smooth=False)
+    B.sphere("leaf_light", (0.85, 0.25, 3.5), 1.05, segs=8, rings=5, scale=(1.05, 1.0, 0.78), rot=(0, 0, 30), smooth=False)
+    B.sphere("leaf_dark", (-0.8, -0.35, 3.45), 1.15, segs=8, rings=5, scale=(1.05, 1.0, 0.76), rot=(0, 0, 50), smooth=False)
+    B.sphere("leaf_light", (0.15, -0.75, 3.7), 0.9, segs=7, rings=4, scale=(1.0, 1.05, 0.75), rot=(0, 0, 15), smooth=False)
+    B.sphere("leaf_dark", (-0.25, 0.8, 3.65), 0.95, segs=7, rings=4, scale=(1.05, 1.0, 0.75), rot=(0, 0, 75), smooth=False)
 
 
 @asset("semak_teh", "tree")

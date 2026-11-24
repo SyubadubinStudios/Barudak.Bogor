@@ -13,7 +13,22 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow();
+            MainView view = new();
+            Avalonia.Controls.Window window = new()
+            {
+                Title = "Barudak Bogor",
+                Width = 1280,
+                Height = 720,
+                MinWidth = 960,
+                MinHeight = 600,
+                WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterScreen,
+                Content = view,
+            };
+            desktop.MainWindow = window;
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+        {
+            singleView.MainView = new MainView();
         }
 
         base.OnFrameworkInitializationCompleted();

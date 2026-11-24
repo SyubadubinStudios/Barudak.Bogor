@@ -270,12 +270,12 @@ public sealed class Atmosphere
             ? Vector3.Normalize(new Vector3(-skySun.X, MathF.Max(0.3f, -skySun.Y), -skySun.Z))
             : Vector3.Normalize(new Vector3(skySun.X, MathF.Max(0.12f, skySun.Y), skySun.Z));
         float low = 1f - MathUtil.Saturate(toSun.Y * 2.2f);
-        Vector3 sunColor = Vector3.Lerp(new Vector3(1f, 0.96f, 0.9f), new Vector3(1f, 0.6f, 0.34f), moon ? 0f : low);
+        Vector3 sunColor = Vector3.Lerp(new Vector3(1f, 0.96f, 0.89f), new Vector3(1f, 0.56f, 0.28f), moon ? 0f : low);
         float overcast = 1f - (0.82f * clouds);
-        float sunPower = moon ? 0.22f : 3.4f * daylight * overcast;
+        float sunPower = moon ? 0.24f : 3.55f * daylight * overcast;
         if (moon)
         {
-            sunColor = new Vector3(0.55f, 0.65f, 0.95f);
+            sunColor = new Vector3(0.55f, 0.66f, 0.96f);
         }
 
         _sun.Light = Light.Directional(sunColor, sunPower + (flash * 5f)) with
@@ -287,9 +287,11 @@ public sealed class Atmosphere
         _sun.Position = cameraPosition + (toSun * 400f);
         _sun.LookAt(cameraPosition);
 
-        float ambient = MathUtil.Lerp(0.1f, 0.5f, daylight) * (0.75f + (0.5f * clouds)) + (flash * 1.2f);
-        Vector3 skyTint = Vector3.Lerp(new Vector3(0.25f, 0.32f, 0.55f), Vector3.Lerp(new Vector3(0.6f, 0.72f, 0.9f), new Vector3(0.66f, 0.7f, 0.74f), clouds), daylight);
-        _fill.Light = Light.Hemisphere(skyTint, new Vector3(0.26f, 0.25f, 0.2f) * MathUtil.Lerp(0.4f, 1f, daylight), ambient);
+        float ambient = MathUtil.Lerp(0.11f, 0.52f, daylight) * (0.75f + (0.5f * clouds)) + (flash * 1.2f);
+        Vector3 skyTint = Vector3.Lerp(new Vector3(0.24f, 0.31f, 0.54f), Vector3.Lerp(new Vector3(0.58f, 0.73f, 0.92f), new Vector3(0.58f, 0.64f, 0.7f), clouds), daylight);
+        // Bogor's lush vegetation gives a subtle warm-green ground bounce during the day.
+        Vector3 groundBounce = new Vector3(0.24f, 0.28f, 0.21f) * MathUtil.Lerp(0.38f, 1f, daylight);
+        _fill.Light = Light.Hemisphere(skyTint, groundBounce, ambient);
 
         // Fog takes the colour of the horizon so distant chunks melt into the sky.
         Vector3 dayFog = Vector3.Lerp(new Vector3(0.62f, 0.74f, 0.86f), new Vector3(0.58f, 0.62f, 0.66f), MathUtil.Saturate((clouds * 0.9f) + (Fog * 0.4f)));

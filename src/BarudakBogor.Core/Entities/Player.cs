@@ -103,6 +103,12 @@ public sealed class Player
     /// <summary>0..1; sprinting drains it, resting restores it.</summary>
     public float Stamina { get; private set; } = 1f;
 
+    /// <summary>Subtle banking angle into turns while running (radians), for rendering.</summary>
+    public float Lean { get; private set; }
+
+    /// <summary>Short vertical dip on landing from a jump (metres), for rendering.</summary>
+    public float LandingDip { get; private set; }
+
     /// <summary>The vehicle being driven (or the cart being pushed), if any.</summary>
     public Vehicle? Vehicle { get; set; }
 
@@ -157,12 +163,27 @@ public sealed class Player
         float drain = 0.085f / (1f + (2f * Profile.SprintBonus));
         Stamina = MathUtil.Saturate(Stamina + ((running ? -drain : 0.14f) * dt));
 
+        // Gentle slope effect: steep Bogor/Puncak hills slow uphill sprints slightly.
+        if (length > 0.05f && !InWater)
+        {
+            Vector3 normal = map.Terrain.NormalAt(ground.X, ground.Y);
+            float uphill = -((normal.X * direction.X) + (normal.Z * direction.Y));
+            top *= Math.Clamp(1f - (uphill * 0.45f), 0.78f, 1.12f);
+        }
+
         Vector2 velocity = direction * top;
-        Speed += ((velocity.Length()) - Speed) * MathUtil.Damp(10f, dt);
+        Speed += (velocity.Length() - Speed) * MathUtil.Damp(10f, dt);
+        float targetLean = 0f;
         if (length > 0.05f)
         {
-            Yaw = MathUtil.TurnToward(Yaw, MathUtil.YawOf(direction), 11f * dt);
+            float desiredYaw = MathUtil.YawOf(direction);
+            float deltaYaw = MathUtil.WrapAngle(desiredYaw - Yaw);
+            Yaw = MathUtil.TurnToward(Yaw, desiredYaw, 11f * dt);
+            targetLean = Math.Clamp(deltaYaw * MathUtil.Saturate(Speed / RunSpeed) * 0.35f, -0.2f, 0.2f);
         }
+
+        Lean += (targetLean - Lean) * MathUtil.Damp(8f, dt);
+        LandingDip += (0f - LandingDip) * MathUtil.Damp(14f, dt);
 
         Vector2 next = ground + (direction * Speed * dt);
         next = Vector2.Clamp(next, new Vector2(-Terrain.HalfSize + 20f), new Vector2(Terrain.HalfSize - 20f));
@@ -189,6 +210,7 @@ public sealed class Player
             y += _verticalVelocity * dt;
             if (y <= floor)
             {
+                LandingDip = -Math.Clamp(-_verticalVelocity * 0.015f, 0f, 0.14f);
                 y = floor;
                 Grounded = true;
                 _verticalVelocity = 0f;

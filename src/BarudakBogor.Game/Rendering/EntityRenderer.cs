@@ -317,16 +317,17 @@ public sealed class EntityRenderer
         {
             if (Acquire(pedestrian, pedestrian.Model, HumanParts) is { } view)
             {
-                view.Pivot.Position = pedestrian.Position;
+                float strideBob = MathF.Abs(MathF.Sin(view.Phase)) * 0.032f * MathUtil.Saturate(pedestrian.Speed / 1.4f);
+                view.Pivot.Position = pedestrian.Position + new Vector3(0f, strideBob, 0f);
                 view.Pivot.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, pedestrian.Yaw);
-                AnimateHuman(view, pedestrian.Speed, dt);
+                AnimatePedestrian(view, pedestrian, dt, (float)session.Time);
                 if (pedestrian.Umbrella)
                 {
                     // Held a little forward and to one side, bobbing with the walk.
                     Vector2 ahead = MathUtil.Forward(pedestrian.Yaw);
                     Vector2 side = MathUtil.Left(ahead);
                     float bob = MathF.Sin(view.Phase * 2f) * 0.015f * MathUtil.Saturate(pedestrian.Speed);
-                    Vector3 hand = pedestrian.Position + new Vector3((ahead.X * 0.16f) - (side.X * 0.2f), bob, (ahead.Y * 0.16f) - (side.Y * 0.2f));
+                    Vector3 hand = pedestrian.Position + new Vector3((ahead.X * 0.16f) - (side.X * 0.2f), bob + strideBob, (ahead.Y * 0.16f) - (side.Y * 0.2f));
                     Matrix4x4 tilt = Matrix4x4.CreateRotationX(0.1f) * Matrix4x4.CreateRotationY(pedestrian.Yaw);
                     _canopyInstances[pedestrian.Id % _canopies.Length].Add(tilt * Matrix4x4.CreateTranslation(hand + new Vector3(0f, 2.02f, 0f)));
                     _handleInstances.Add(tilt * Matrix4x4.CreateTranslation(hand + new Vector3(0f, 1.5f, 0f)));
@@ -559,8 +560,9 @@ public sealed class EntityRenderer
             position.Y -= 0.1f;
         }
 
-        _player.Pivot.Position = position;
-        _player.Pivot.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, player.Yaw);
+        _player.Pivot.Position = position + new Vector3(0f, riding ? 0f : player.LandingDip, 0f);
+        _player.Pivot.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, player.Yaw)
+            * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, riding ? 0f : player.Lean);
         if (_playerRig is not null)
         {
             // What the body is doing besides walking: in the air, in the water, or at a game.
@@ -647,6 +649,104 @@ public sealed class EntityRenderer
             {
                 player.Time = time;
                 player.Weight = weight < 0.004f ? 0f : weight;
+            }
+        }
+    }
+
+    private static void AnimatePedestrian(View view, Pedestrian pedestrian, float dt, float time)
+    {
+        if (view.Parts.Length < 4)
+        {
+            return;
+        }
+
+        float speed = pedestrian.Speed;
+        view.Phase += speed * dt * 2.6f;
+        float stride = MathUtil.Saturate(speed / 1.6f) * (speed > 3f ? 0.95f : 0.62f);
+        float swing = MathF.Sin(view.Phase) * stride;
+        float legL = swing;
+        float legR = -swing;
+        float armL = -swing * 0.8f;
+        float armR = swing * 0.8f;
+        float headYaw = 0f;
+        float torsoPitch = speed > 2.8f ? 0.12f : 0f;
+
+        if (pedestrian.Umbrella)
+        {
+            // Raise right arm steadily to grip the umbrella handle.
+            armR = -1.25f + (MathF.Sin(view.Phase) * 0.04f);
+        }
+        else if (pedestrian.Kind == NpcKind.Pkl)
+        {
+            // Holding the carrying pole (pikulan) balanced across the shoulders.
+            armL = -0.75f;
+            armR = -0.75f;
+        }
+        else if (speed < 0.25f)
+        {
+            float t = time + (pedestrian.Id * 1.37f);
+            switch (pedestrian.Kind)
+            {
+                case NpcKind.Polisi:
+                    // Bogor traffic officer: alternating stop/beckon arm gestures.
+                    armL = -1.45f + (MathF.Sin(t * 2.2f) * 0.22f);
+                    armR = -0.7f + (MathF.Sin((t * 3.8f) + 1.2f) * 0.55f);
+                    headYaw = MathF.Sin(t * 1.1f) * 0.35f;
+                    break;
+                case NpcKind.Pengamen:
+                    // Street musician strumming and swaying rhythmically.
+                    armL = -0.95f;
+                    armR = -0.85f + (MathF.Sin(t * 7.5f) * 0.28f);
+                    torsoPitch = MathF.Sin(t * 2.5f) * 0.06f;
+                    headYaw = MathF.Sin(t * 1.8f) * 0.2f;
+                    break;
+                case NpcKind.Badut:
+                    // Street clown waving cheerfully to passersby.
+                    armR = -2.35f + (MathF.Sin(t * 5.2f) * 0.35f);
+                    armL = -0.35f + (MathF.Sin(t * 2.6f) * 0.15f);
+                    headYaw = MathF.Sin(t * 2.1f) * 0.28f;
+                    break;
+                default:
+                    // Natural idle breathing and occasional glance left/right.
+                    headYaw = MathF.Sin(t * 0.75f) * 0.26f;
+                    armL = MathF.Sin(t * 1.4f) * 0.04f;
+                    armR = -armL;
+                    break;
+            }
+        }
+
+        if (pedestrian.State == PedestrianState.Shelter)
+        {
+            // Slightly hunched under eaves while waiting out the rain.
+            torsoPitch = 0.14f;
+            if (!pedestrian.Umbrella)
+            {
+                armL = -0.45f;
+                armR = -0.45f;
+            }
+        }
+
+        SetX(view.Parts[0], legL);
+        SetX(view.Parts[1], legR);
+        SetX(view.Parts[2], armL);
+        SetX(view.Parts[3], armR);
+        if (view.Parts.Length > 4 && view.Parts[4] is { } head)
+        {
+            head.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, headYaw);
+        }
+
+        if (view.Parts.Length > 5 && view.Parts[5] is { } torso)
+        {
+            float rollSway = MathF.Sin(view.Phase) * 0.04f * MathUtil.Saturate(speed / 1.5f);
+            torso.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, torsoPitch)
+                * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, rollSway);
+        }
+
+        static void SetX(Node? part, float angle)
+        {
+            if (part is not null)
+            {
+                part.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, angle);
             }
         }
     }
@@ -788,9 +888,11 @@ public sealed class EntityRenderer
             Vector3 seat = CameraRig.SeatOf(vehicle.Spec.Kind);
             Vector2 ahead = vehicle.Forward;
             Vector2 left = MathUtil.Left(ahead);
-            _cockpit.Position = vehicle.Position + new Vector3((left.X * seat.X) + (ahead.X * seat.Z), seat.Y + 0.12f, (left.Y * seat.X) + (ahead.Y * seat.Z));
+            _cockpit.Position = vehicle.Position + new Vector3((left.X * seat.X) + (ahead.X * seat.Z), seat.Y + 0.12f + vehicle.SuspensionOffset, (left.Y * seat.X) + (ahead.Y * seat.Z));
             // The cockpit is modelled with +X to the passenger side, which is the vehicle's left.
-            _cockpit.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, vehicle.Yaw) * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -vehicle.Pitch);
+            _cockpit.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, vehicle.Yaw)
+                * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -vehicle.TotalPitch)
+                * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -vehicle.TotalRoll * 0.6f);
             _steeringWheel.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, 1.2f) * Quaternion.CreateFromAxisAngle(Vector3.UnitY, vehicle.SteerAngle * 2.4f);
             Vector4 paint = vehicle.Spec.Kind switch
             {
@@ -809,13 +911,13 @@ public sealed class EntityRenderer
         }
 
         UpdateRider(view, vehicle, drivenByPlayer, dt);
-        float lift = vehicle.IsOnRoad || vehicle.IsTraffic ? 0.12f : 0f;
+        float lift = (vehicle.IsOnRoad || vehicle.IsTraffic ? 0.12f : 0f) + vehicle.SuspensionOffset;
         float lean = vehicle.Spec.Kind == VehicleKind.Motor ? vehicle.SteerAngle * MathUtil.Saturate(MathF.Abs(vehicle.Speed) / 8f) * 0.9f : 0f;
         view.Pivot.Position = vehicle.Position + new Vector3(0f, lift, 0f);
         view.Pivot.Rotation =
             Quaternion.CreateFromAxisAngle(Vector3.UnitY, vehicle.Yaw)
-            * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -vehicle.Pitch)
-            * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -vehicle.Roll - lean);
+            * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -vehicle.TotalPitch)
+            * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -vehicle.TotalRoll - lean);
 
         Quaternion spin = Quaternion.CreateFromAxisAngle(Vector3.UnitX, vehicle.WheelSpin);
         Quaternion steer = Quaternion.CreateFromAxisAngle(Vector3.UnitY, vehicle.SteerAngle) * spin;

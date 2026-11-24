@@ -7,7 +7,7 @@ namespace BarudakBogor.Game.Rendering;
 /// <summary>CPU side of one streamed chunk, ready to be uploaded.</summary>
 public sealed class ChunkData
 {
-    public const int GroundTextureSize = 64;
+    public const int GroundTextureSize = 128;
 
     public required int X { get; init; }
 
@@ -29,6 +29,9 @@ public sealed class ChunkData
     public MeshData RoadGang { get; } = new();
 
     public MeshData Asphalt { get; } = new();
+
+    /// <summary>Raised pedestrian sidewalks (trotoar) with Bogor black-and-white kanstin curbs.</summary>
+    public MeshData Sidewalks { get; } = new();
 
     public MeshData Buildings { get; } = new();
 
@@ -63,7 +66,7 @@ public static class ChunkBuilder
         Vector2 max = min + new Vector2(WorldMap.ChunkSize);
         BuildTerrain(map, data, chunkX, chunkZ);
         PaintGround(map, data, min);
-        BuildRoads(map, data, min, max);
+        BuildRoads(map, data, min, max, detail);
         BuildCorridors(map, data, min, max);
         BuildBoulders(map, data.Buildings, min, max);
         BuildStructures(map, data.Buildings, min, max);
@@ -266,7 +269,7 @@ public static class ChunkBuilder
 
     // ------------------------------------------------------------------ roads
 
-    private static void BuildRoads(WorldMap map, ChunkData data, Vector2 min, Vector2 max)
+    private static void BuildRoads(WorldMap map, ChunkData data, Vector2 min, Vector2 max, bool detail)
     {
         Terrain terrain = map.Terrain;
         HashSet<int> junctions = [];
@@ -292,6 +295,21 @@ public static class ChunkBuilder
             Vector2 tm = Vector2.Normalize(ta + tb);
             Ribbon(mesh, terrain, min, a, ta, va, mid, tm, (va + vb) * 0.5f, half);
             Ribbon(mesh, terrain, min, mid, tm, (va + vb) * 0.5f, b, tb, vb, half);
+
+            // Raised urban sidewalks (trotoar) with kanstin hitam-putih curbs along Bogor city streets.
+            if (detail && edge.Kind is RoadKind.Arterial or RoadKind.Street
+                && edge.Length > 18f
+                && map.LandUseAt(mid) is LandUse.Kota or LandUse.Pasar or LandUse.Modern or LandUse.Kampus or LandUse.Kampung
+                && map.Terrain.CorridorClearance(mid) > 10f)
+            {
+                float d0 = edge.DistanceAtVertex(segment);
+                float d1 = edge.DistanceAtVertex(segment + 1);
+                if (d0 >= 5f && d1 <= edge.Length - 5f)
+                {
+                    SidewalkRibbon(data.Sidewalks, terrain, min, a, ta, va * 2f, mid, tm, (va + vb), half, 1.55f);
+                    SidewalkRibbon(data.Sidewalks, terrain, min, mid, tm, (va + vb), b, tb, vb * 2f, half, 1.55f);
+                }
+            }
 
             if (segment == 0)
             {
@@ -360,6 +378,49 @@ public static class ChunkBuilder
             Local(ra, ha, origin), Local(rb, hb, origin), Local(lb, hb, origin), Local(la, ha, origin),
             Vector3.UnitY,
             new Vector2(1f, va), new Vector2(1f, vb), new Vector2(0f, vb), new Vector2(0f, va));
+    }
+
+    /// <summary>Builds raised 3D sidewalks with black-and-white kanstin curb faces on both sides of a street.</summary>
+    private static void SidewalkRibbon(MeshData mesh, Terrain terrain, Vector2 origin, Vector2 a, Vector2 ta, float va, Vector2 b, Vector2 tb, float vb, float roadHalf, float width)
+    {
+        const float curbHeight = 0.16f;
+        Vector2 leftA = MathUtil.Left(ta);
+        Vector2 leftB = MathUtil.Left(tb);
+        float ha = MathF.Max(terrain.HeightAt(a), MathF.Max(terrain.HeightAt(a + (leftA * roadHalf)), terrain.HeightAt(a - (leftA * roadHalf)))) + RoadLift;
+        float hb = MathF.Max(terrain.HeightAt(b), MathF.Max(terrain.HeightAt(b + (leftB * roadHalf)), terrain.HeightAt(b - (leftB * roadHalf)))) + RoadLift;
+
+        foreach (float side in (ReadOnlySpan<float>)[1f, -1f])
+        {
+            Vector2 inA = a + (leftA * side * roadHalf);
+            Vector2 outA = a + (leftA * side * (roadHalf + width));
+            Vector2 inB = b + (leftB * side * roadHalf);
+            Vector2 outB = b + (leftB * side * (roadHalf + width));
+            Vector3 inward = new(-leftA.X * side, 0f, -leftA.Y * side);
+
+            Vector3 topInA = Local(inA, ha + curbHeight, origin);
+            Vector3 topOutA = Local(outA, ha + curbHeight, origin);
+            Vector3 topInB = Local(inB, hb + curbHeight, origin);
+            Vector3 topOutB = Local(outB, hb + curbHeight, origin);
+            Vector3 botInA = Local(inA, ha - 0.04f, origin);
+            Vector3 botInB = Local(inB, hb - 0.04f, origin);
+
+            // Top paving deck (U in 0.25..1.0)
+            if (side > 0f)
+            {
+                mesh.Quad(topInA, topInB, topOutB, topOutA, Vector3.UnitY,
+                    new Vector2(0.25f, va), new Vector2(0.25f, vb), new Vector2(1f, vb), new Vector2(1f, va));
+                // Curb riser facing the road (U in 0..0.24 = kanstin hitam-putih)
+                mesh.Quad(botInA, botInB, topInB, topInA, inward,
+                    new Vector2(0f, va), new Vector2(0f, vb), new Vector2(0.24f, vb), new Vector2(0.24f, va));
+            }
+            else
+            {
+                mesh.Quad(topOutA, topOutB, topInB, topInA, Vector3.UnitY,
+                    new Vector2(1f, va), new Vector2(1f, vb), new Vector2(0.25f, vb), new Vector2(0.25f, va));
+                mesh.Quad(topInA, topInB, botInB, botInA, inward,
+                    new Vector2(0.24f, va), new Vector2(0.24f, vb), new Vector2(0f, vb), new Vector2(0f, va));
+            }
+        }
     }
 
     private static Vector3 Local(Vector2 p, float y, Vector2 origin) => new(p.X - origin.X, y, p.Y - origin.Y);
@@ -582,12 +643,54 @@ public static class ChunkBuilder
         Wall(mesh, c2, c1, aw, b.BaseY, floors, floorHeight, b.HalfDepth * 2f, tiles, b.Seed + 2u, windows: detail && !terraced, groundFloor: false);
         Wall(mesh, c0, c3, -aw, b.BaseY, floors, floorHeight, b.HalfDepth * 2f, tiles, b.Seed + 3u, windows: detail && !terraced, groundFloor: false);
 
+        // 3D projecting shopfront canopy / awning on detailed Bogor shophouses & kiosks.
+        if (detail && b.Style is BuildingStyle.Ruko or BuildingStyle.Kios)
+        {
+            float awningY = b.BaseY + floorHeight - 0.12f;
+            float proj = b.Style == BuildingStyle.Kios ? 1.1f : 1.35f;
+            Vector3 a0 = c1 + (Vector3.UnitY * awningY);
+            Vector3 a1 = c0 + (Vector3.UnitY * awningY);
+            Vector3 a2 = a1 - (ad * proj) - (Vector3.UnitY * 0.36f);
+            Vector3 a3 = a0 - (ad * proj) - (Vector3.UnitY * 0.36f);
+            (Vector2 av0, Vector2 av1) = WorldTextures.TileUv(b.Seed % 2 == 0 ? WorldTextures.AwningStripe : WorldTextures.RoofZinc);
+            Vector3 awningN = Vector3.Normalize(Vector3.Cross(a1 - a0, a3 - a0));
+            mesh.Quad(a0, a1, a2, a3, awningN, new Vector2(av0.X, av1.Y), av1, new Vector2(av1.X, av0.Y), av0);
+            mesh.Quad(a3, a2, a1, a0, -awningN, new Vector2(av0.X, av1.Y), av1, new Vector2(av1.X, av0.Y), av0);
+        }
+
         Vector3 up = Vector3.UnitY * top;
         if (!gable)
         {
             int roof = b.Style == BuildingStyle.Kios ? WorldTextures.RoofZinc : WorldTextures.RoofConcrete;
             (Vector2 uv0, Vector2 uv1) = WorldTextures.TileUv(roof);
             mesh.Quad(c0 + up, c3 + up, c2 + up, c1 + up, Vector3.UnitY, uv0, new Vector2(uv0.X, uv1.Y), uv1, new Vector2(uv1.X, uv0.Y));
+
+            if (detail && b.Style != BuildingStyle.Kios)
+            {
+                // Parapet rim around flat roofs + Bogor rooftop water tank (toren air) & AC chiller box.
+                float parapetH = 0.55f;
+                float rim = 0.24f;
+                Box(mesh, b.Center - (b.AxisDepth * (b.HalfDepth - (rim * 0.5f))), b.AxisWidth, b.HalfWidth, rim * 0.5f, top, top + parapetH, tiles + 2, origin);
+                Box(mesh, b.Center + (b.AxisDepth * (b.HalfDepth - (rim * 0.5f))), b.AxisWidth, b.HalfWidth, rim * 0.5f, top, top + parapetH, tiles + 2, origin);
+                Box(mesh, b.Center + (b.AxisWidth * (b.HalfWidth - (rim * 0.5f))), b.AxisDepth, b.HalfDepth, rim * 0.5f, top, top + parapetH, tiles + 2, origin);
+                Box(mesh, b.Center - (b.AxisWidth * (b.HalfWidth - (rim * 0.5f))), b.AxisDepth, b.HalfDepth, rim * 0.5f, top, top + parapetH, tiles + 2, origin);
+
+                if (b.HalfWidth > 2.2f && b.HalfDepth > 2.2f)
+                {
+                    if ((b.Seed % 3) != 0)
+                    {
+                        Vector2 tankPos = b.Center + (b.AxisWidth * (b.HalfWidth * 0.35f)) + (b.AxisDepth * (b.HalfDepth * 0.3f));
+                        Box(mesh, tankPos, b.AxisWidth, 0.55f, 0.55f, top, top + 1.35f, WorldTextures.TankBlue, origin);
+                    }
+
+                    if (b.Style is BuildingStyle.Kantor or BuildingStyle.Mall or BuildingStyle.Ruko)
+                    {
+                        Vector2 acPos = b.Center - (b.AxisWidth * (b.HalfWidth * 0.3f)) + (b.AxisDepth * (b.HalfDepth * 0.2f));
+                        Box(mesh, acPos, b.AxisWidth, MathF.Min(1.2f, b.HalfWidth * 0.35f), MathF.Min(0.9f, b.HalfDepth * 0.3f), top, top + 0.85f, WorldTextures.RoofZinc, origin);
+                    }
+                }
+            }
+
             return;
         }
 

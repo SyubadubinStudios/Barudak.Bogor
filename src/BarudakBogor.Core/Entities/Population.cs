@@ -33,6 +33,8 @@ public enum PedestrianState
     Walk,
     Idle,
     Dodge,
+    /// <summary>Taking shelter under building eaves/awnings during heavy Bogor rain.</summary>
+    Shelter,
 }
 
 /// <summary>A walker on the kerb. Pedestrians follow road edges and jump clear of vehicles.</summary>
@@ -310,6 +312,118 @@ public sealed class Population
         _ => hours is >= 5f and < 22f ? 1f : 0.5f,
     };
 
+    /// <summary>
+    /// District-aware crowd curve: Pasar Anyar &amp; Suryakencana surge at dawn and evening culinary
+    /// hours, Kampus IPB peaks during class hours, Pusat Kota peaks at commuter rush, and Puncak
+    /// quiets down after dusk.
+    /// </summary>
+    public static float CrowdFactor(float hours, LandUse use) => use switch
+    {
+        LandUse.Pasar => hours switch
+        {
+            < 4.5f => 0.25f,
+            < 10.5f => 1.25f,
+            < 16.5f => 0.8f,
+            < 21.5f => 1.05f,
+            _ => 0.22f,
+        },
+        LandUse.Kampus => hours switch
+        {
+            < 6f => 0.1f,
+            < 17.5f => 1.15f,
+            < 21.5f => 0.65f,
+            _ => 0.12f,
+        },
+        LandUse.Villa or LandUse.Taman or LandUse.KebunTeh => hours switch
+        {
+            < 6.5f => 0.12f,
+            < 17.5f => 1.1f,
+            < 20f => 0.45f,
+            _ => 0.08f,
+        },
+        LandUse.Kota or LandUse.Modern => hours switch
+        {
+            < 4.5f => 0.15f,
+            < 6.5f => 0.55f,
+            < 9f => 1.18f,
+            < 16.5f => 0.9f,
+            < 19.5f => 1.2f,
+            < 22f => 0.82f,
+            _ => 0.2f,
+        },
+        _ => CrowdFactor(hours),
+    };
+
+    /// <summary>
+    /// How strongly weather and local blackouts thin out the street crowd (1 = clear day,
+    /// down to ~0.18 in a thunderstorm and further reduced during a power cut).
+    /// </summary>
+    public static float WeatherCrowdFactor(WeatherKind kind, float rain, bool blackedOut)
+    {
+        float baseFactor = kind switch
+        {
+            WeatherKind.Cerah => 1f,
+            WeatherKind.Berawan => 0.96f,
+            WeatherKind.Gerimis => 0.82f,
+            WeatherKind.HujanSedang => 0.58f,
+            WeatherKind.HujanDeras => 0.34f,
+            WeatherKind.BadaiPetir => 0.2f,
+            _ => 1f,
+        };
+        float rainBlend = MathUtil.Lerp(1f, 0.22f, MathUtil.Saturate(rain));
+        float factor = MathF.Min(baseFactor, rainBlend);
+        if (blackedOut)
+        {
+            factor *= 0.55f;
+        }
+
+        return Math.Clamp(factor, 0.1f, 1f);
+    }
+
+    /// <summary>
+    /// Role-specific weather sensitivity: buskers, clowns, and schoolchildren stay indoors in
+    /// heavy rain, while ojol riders, police, and drivers keep working.
+    /// </summary>
+    public static float WeatherRoleFactor(NpcKind kind, WeatherKind weather) => weather switch
+    {
+        WeatherKind.HujanDeras or WeatherKind.BadaiPetir => kind switch
+        {
+            NpcKind.Badut => 0f,
+            NpcKind.Pengamen => 0.08f,
+            NpcKind.AnakSd or NpcKind.AnakSekolah => 0.12f,
+            NpcKind.Pns => 0.2f,
+            NpcKind.Pkl => 0.25f,
+            NpcKind.Ojol => 1.15f,
+            NpcKind.Polisi => 0.85f,
+            NpcKind.Sopir => 0.9f,
+            _ => 0.45f,
+        },
+        WeatherKind.HujanSedang => kind switch
+        {
+            NpcKind.Badut => 0.15f,
+            NpcKind.Pengamen => 0.35f,
+            NpcKind.Ojol => 1.1f,
+            _ => 0.75f,
+        },
+        _ => 1f,
+    };
+
+    /// <summary>Traffic density multiplier by time of day (Bogor commuter rush hours) and weather.</summary>
+    public static float TrafficFactor(float hours, WeatherKind weather, float fog)
+    {
+        float time = hours switch
+        {
+            >= 6.5f and < 9f => 1.3f,
+            >= 16.5f and < 19.5f => 1.32f,
+            >= 9f and < 16.5f => 1f,
+            >= 19.5f and < 22.5f => 0.72f,
+            _ => 0.38f,
+        };
+        float wx = weather >= WeatherKind.HujanDeras ? 0.8f : weather >= WeatherKind.HujanSedang ? 0.9f : 1f;
+        float mist = 1f - (0.2f * MathUtil.Saturate(fog));
+        return time * wx * mist;
+    }
+
     /// <summary>The commuter train: traffic waits at a level crossing while it passes.</summary>
     public Train? Train { get; set; }
 
@@ -346,7 +460,7 @@ public sealed class Population
             Spawn(focus, MathUtil.Forward(player.Vehicle?.Yaw ?? player.Yaw), clock, weather);
         }
 
-        UpdateTraffic(dt, player, focus);
+        UpdateTraffic(dt, player, focus, clock, weather);
         UpdatePedestrians(dt, player, focus, weather);
         UpdateAnimals(dt, player, focus);
     }
@@ -356,24 +470,27 @@ public sealed class Population
     private void Spawn(Vector2 focus, Vector2 facing, GameClock clock, WeatherSystem weather)
     {
         LandUse use = _map.LandUseAt(focus);
-        float night = CrowdFactor(clock.Hours);
-        int wantedPeople = (int)(use switch
+        bool blackedOut = weather.IsBlackedOut(focus);
+        float fog = weather.FogAt(_map.Terrain.HeightAt(focus), clock.Hours);
+        float timeCrowd = CrowdFactor(clock.Hours, use);
+        float weatherCrowd = WeatherCrowdFactor(weather.Kind, weather.Rain, blackedOut);
+        int wantedPeople = Math.Min((int)(62 * Density), (int)(use switch
         {
             LandUse.Pasar => 60,
-            LandUse.Kota => 46,
+            LandUse.Kota => 48,
             LandUse.Gang or LandUse.Kampus => 36,
             LandUse.Kampung => 34,
-            LandUse.Modern or LandUse.Taman => 16,
-            LandUse.Villa => 9,
+            LandUse.Modern or LandUse.Taman => 18,
+            LandUse.Villa => 10,
             _ => 5,
-        } * night * (1f - (0.45f * weather.Rain)) * Density);
-        int wantedCars = (int)(use switch
+        } * timeCrowd * weatherCrowd * Density));
+        int wantedCars = Math.Min((int)(20 * Density), (int)(use switch
         {
             LandUse.Kota or LandUse.Pasar => 18,
             LandUse.Kampus or LandUse.Modern or LandUse.Kampung => 13,
             LandUse.Gang => 6,
             _ => 9,
-        } * (clock.IsNight ? 0.55f : 1f) * Density);
+        } * TrafficFactor(clock.Hours, weather.Kind, fog) * Density));
         int wantedStrays = (int)(use switch
         {
             LandUse.Kampung or LandUse.Gang => 9,
@@ -382,7 +499,7 @@ public sealed class Population
             LandUse.Sawah => 4,
             LandUse.Kampus or LandUse.Modern => 3,
             _ => 0,
-        } * Density);
+        } * (weather.Rain > 0.45f ? 0.35f : 1f) * Density);
 
         // A few tries per tick so a busy street fills within seconds of arriving.
         for (int i = 0; i < 4 && _pedestrians.Count < wantedPeople; i++)
@@ -394,7 +511,7 @@ public sealed class Population
             if (RandomRoadPoint(focus, e => e.Kind != RoadKind.Toll, nearest, PeopleFar) is { } walk
                 && (filling || nearest >= PeopleNear || Vector2.Dot(Vector2.Normalize(walk.Point - focus), facing) < -0.25f))
             {
-                SpawnPedestrian(walk, clock);
+                SpawnPedestrian(walk, clock, weather);
             }
         }
 
@@ -402,7 +519,7 @@ public sealed class Population
         {
             if (RandomRoadPoint(focus, null, _agents.Count < wantedCars / 2 ? 30f : SpawnNear) is { } drive)
             {
-                SpawnTraffic(drive);
+                SpawnTraffic(drive, clock);
             }
         }
 
@@ -440,12 +557,12 @@ public sealed class Population
         return hit is { } h && Vector2.Distance(h.Point, focus) > nearest ? hit : null;
     }
 
-    private void SpawnPedestrian(RoadHit hit, GameClock clock)
+    private void SpawnPedestrian(RoadHit hit, GameClock clock, WeatherSystem weather)
     {
         LandUse use = _map.LandUseAt(hit.Point);
         bool schoolRun = clock.Hours is (>= 6f and < 7.5f) or (>= 12.5f and < 14f);
         // Draw from who lives around here, then keep the draw only if that kind of person is
-        // out at this hour; whoever is left after a few tries is the night's usual company.
+        // out at this hour and in this weather; whoever is left is the usual company.
         NpcKind kind = clock.Hours is >= 5f and < 22f ? NpcKind.Bapak : NpcKind.Ojol;
         for (int attempt = 0; attempt < 5; attempt++)
         {
@@ -475,7 +592,8 @@ public sealed class Population
                 drawn = _rng.Chance(0.6f) ? NpcKind.AnakSd : NpcKind.AnakSekolah;
             }
 
-            if (_rng.Chance(ScheduleFactor(drawn, clock.Hours)))
+            float likelihood = ScheduleFactor(drawn, clock.Hours) * WeatherRoleFactor(drawn, weather.Kind);
+            if (_rng.Chance(likelihood))
             {
                 kind = drawn;
                 break;
@@ -505,25 +623,34 @@ public sealed class Population
         _pedestrians.Add(pedestrian);
     }
 
-    private void SpawnTraffic(RoadHit hit)
+    private void SpawnTraffic(RoadHit hit, GameClock clock)
     {
         RoadEdge edge = hit.Edge;
         float roll = _rng.NextFloat();
+        bool rushHour = clock.Hours is (>= 6.5f and < 9f) or (>= 16.5f and < 19.5f);
         VehicleKind kind = edge.Kind switch
         {
             RoadKind.Gang => roll < 0.85f ? VehicleKind.Motor : VehicleKind.Becak,
             RoadKind.Toll => roll < 0.45f ? VehicleKind.MobilKeluarga : roll < 0.7f ? VehicleKind.Sedan : roll < 0.92f ? VehicleKind.Truk : VehicleKind.TahuBulat,
-            _ => roll < 0.24f ? VehicleKind.Angkot
-                : roll < 0.52f ? VehicleKind.Motor
-                : roll < 0.64f ? VehicleKind.MobilKeluarga
-                : roll < 0.73f ? VehicleKind.Sedan
-                : roll < 0.8f ? VehicleKind.Truk
-                : roll < 0.86f ? VehicleKind.Becak
-                : roll < 0.91f ? VehicleKind.Bemo
-                : roll < 0.94f ? VehicleKind.Bajaj
-                : roll < 0.96f ? VehicleKind.TahuBulat
-                : roll < 0.98f ? VehicleKind.Bakso
-                : VehicleKind.Delman,
+            _ => rushHour
+                ? (roll < 0.34f ? VehicleKind.Angkot
+                    : roll < 0.66f ? VehicleKind.Motor
+                    : roll < 0.78f ? VehicleKind.MobilKeluarga
+                    : roll < 0.86f ? VehicleKind.Sedan
+                    : roll < 0.92f ? VehicleKind.Truk
+                    : roll < 0.96f ? VehicleKind.Bemo
+                    : VehicleKind.Bajaj)
+                : (roll < 0.24f ? VehicleKind.Angkot
+                    : roll < 0.52f ? VehicleKind.Motor
+                    : roll < 0.64f ? VehicleKind.MobilKeluarga
+                    : roll < 0.73f ? VehicleKind.Sedan
+                    : roll < 0.8f ? VehicleKind.Truk
+                    : roll < 0.86f ? VehicleKind.Becak
+                    : roll < 0.91f ? VehicleKind.Bemo
+                    : roll < 0.94f ? VehicleKind.Bajaj
+                    : roll < 0.96f ? VehicleKind.TahuBulat
+                    : roll < 0.98f ? VehicleKind.Bakso
+                    : VehicleKind.Delman),
         };
         // Delmans, becaks and bemos belong to the old town; out on the open road they would hold everyone up.
         if (kind is VehicleKind.Delman or VehicleKind.Becak or VehicleKind.Bemo
@@ -798,10 +925,14 @@ public sealed class Population
             && MathF.Abs(Vector2.Dot(offset, MathUtil.Left(other.Forward))) < other.HalfWidth + (sin * halfLength) + (cos * halfWidth);
     }
 
-    private void UpdateTraffic(float dt, Player player, Vector2 focus)
+    private void UpdateTraffic(float dt, Player player, Vector2 focus, GameClock clock, WeatherSystem weather)
     {
         Vehicle? playerVehicle = player.Vehicle;
         float playerRadius = playerVehicle?.Spec.Radius ?? Player.Radius;
+        float fog = weather.FogAt(_map.Terrain.HeightAt(focus), clock.Hours);
+        // Bogor drivers slow down cautiously in heavy rain and thick Puncak mist.
+        float weatherSpeed = Math.Clamp(1f - (0.28f * weather.Rain) - (0.22f * fog), 0.52f, 1f);
+        bool lightsNeeded = clock.IsNight || weather.Rain > 0.2f || weather.Clouds > 0.78f || fog > 0.35f;
         for (int i = _agents.Count - 1; i >= 0; i--)
         {
             if (Vector2.DistanceSquared(_agents[i].Vehicle.Ground, focus) > DespawnDistance * DespawnDistance)
@@ -848,7 +979,8 @@ public sealed class Population
             bool blockedByPlayer = IsAhead(position, forward, focus, lookAhead, 1.6f + playerRadius);
 
             // What the driver wants (target) and what the car in front allows right now (cap).
-            float target = blockedByPlayer ? 0f : agent.Cruise;
+            vehicle.LightsOn = lightsNeeded && vehicle.Spec.Motorised;
+            float target = blockedByPlayer ? 0f : agent.Cruise * weatherSpeed;
             float cap = float.MaxValue;
             bool held = false;
             int lowestBlocker = int.MaxValue;
@@ -1053,8 +1185,12 @@ public sealed class Population
                 }
 
                 Obstacle other = _obstacles[k];
-                stopped = Touches(eased, yawForward, halfLength, halfWidth, other)
-                    && Vector2.DistanceSquared(eased, other.Position) < Vector2.DistanceSquared(position, other.Position) - 1e-5f;
+                if (Touches(eased, yawForward, halfLength, halfWidth, other))
+                {
+                    bool alreadyInside = Touches(position, forward, halfLength, halfWidth, other);
+                    stopped = !alreadyInside
+                        || Vector2.DistanceSquared(eased, other.Position) < Vector2.DistanceSquared(position, other.Position) - 1e-5f;
+                }
             }
 
             if (stopped)
@@ -1228,6 +1364,15 @@ public sealed class Population
             // Umbrellas go up one by one as the rain sets in, not all on the same frame.
             p.Umbrella = p.CarriesUmbrella && weather.Rain > 0.12f + ((p.Id % 7) * 0.03f);
 
+            // In heavy Bogor downpours, pedestrians without umbrellas step back toward building eaves to shelter (berteduh).
+            bool shouldShelter = weather.Rain > 0.42f && !p.Umbrella && p.Kind is not (NpcKind.Polisi or NpcKind.Ojol);
+            if (shouldShelter && p.State is PedestrianState.Walk or PedestrianState.Idle && (p.Id % 3) != 0)
+            {
+                p.State = PedestrianState.Shelter;
+                p.Timer = _rng.Range(6f, 16f);
+                p.Speed = 0f;
+            }
+
             // Leap clear of a vehicle bearing down on us. Nobody gets hurt in Bogor.
             if (car is not null && p.State != PedestrianState.Dodge && MathF.Abs(car.Speed) > 2.5f)
             {
@@ -1247,6 +1392,25 @@ public sealed class Population
 
             switch (p.State)
             {
+                case PedestrianState.Shelter:
+                    p.Speed = 0f;
+                    // Step slightly back from the kerb toward shop awnings while sheltering.
+                    Vector2 shelterEdge = p.Edge.Sample(p.Distance, out Vector2 sDir);
+                    float shelterOffset = (p.Edge.Width * 0.5f) + (p.Edge.Kind == RoadKind.Gang ? -0.4f : 2.15f);
+                    Vector2 shelterPos = _map.ResolveCircle(shelterEdge + (MathUtil.Left(sDir) * p.Side * shelterOffset), 0.35f, out _);
+                    Vector2 tucked = Vector2.Lerp(position, shelterPos, MathUtil.Damp(3.5f, dt));
+                    p.Position = tucked.ToWorld(_map.Terrain.HeightAt(tucked));
+                    // Face the street while watching the rain fall.
+                    p.Yaw = MathUtil.YawOf(-MathUtil.Left(sDir) * p.Side);
+                    p.Timer -= dt;
+                    if (weather.Rain < 0.25f || p.Umbrella || p.Timer <= 0f)
+                    {
+                        p.State = PedestrianState.Walk;
+                        p.Timer = _rng.Range(10f, 30f);
+                    }
+
+                    break;
+
                 case PedestrianState.Dodge:
                     position = _map.ResolveCircle(position + (p.DodgeVelocity * dt), 0.3f, out _);
                     p.Position = position.ToWorld(_map.Terrain.HeightAt(position));

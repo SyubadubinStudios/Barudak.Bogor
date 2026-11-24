@@ -19,19 +19,19 @@ internal static partial class Program
         int capture = Array.IndexOf(args, "--capture");
         if (capture >= 0 && capture + 1 < args.Length)
         {
-            CaptureDirectory = args[capture + 1];
+            LaunchOptions.CaptureDirectory = args[capture + 1];
         }
 
         int only = Array.IndexOf(args, "--only");
         if (only >= 0 && only + 1 < args.Length)
         {
-            CaptureOnly = [.. args[only + 1].Split(',', StringSplitOptions.RemoveEmptyEntries)];
+            LaunchOptions.CaptureOnly = [.. args[only + 1].Split(',', StringSplitOptions.RemoveEmptyEntries)];
         }
 
         int bench = Array.IndexOf(args, "--bench");
         if (bench >= 0 && bench + 1 < args.Length)
         {
-            BenchFile = args[bench + 1];
+            LaunchOptions.BenchFile = args[bench + 1];
         }
 
         // Avalonia paces its composition with a dispatcher timer. At the default 15.6 ms Windows

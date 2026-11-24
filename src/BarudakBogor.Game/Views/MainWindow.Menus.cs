@@ -12,7 +12,7 @@ using BarudakBogor.World;
 
 namespace BarudakBogor.Game.Views;
 
-public partial class MainWindow
+public partial class MainView
 {
     private enum PauseTab
     {
@@ -40,7 +40,7 @@ public partial class MainWindow
         NewGameButton.Click += (_, _) => StartPlaying(null);
         LanguageButton.Click += (_, _) => ToggleLanguage();
         TitleSettingsButton.Click += (_, _) => CycleQuality();
-        QuitButton.Click += (_, _) => Close();
+        QuitButton.Click += (_, _) => RequestClose();
         CreditsButton.Click += (_, _) => ShowCredits();
         CreditsCloseButton.Click += (_, _) => HideCredits();
         ResumeButton.Click += (_, _) => Resume();

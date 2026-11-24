@@ -86,6 +86,26 @@ public sealed class Vehicle(int id, VehicleKind kind)
 
     public float Roll { get; private set; }
 
+    /// <summary>Dynamic pitch from acceleration squat and braking nose-dive (radians).</summary>
+    public float BodyPitch { get; private set; }
+
+    /// <summary>Dynamic body roll from cornering lateral acceleration (radians).</summary>
+    public float BodyRoll { get; private set; }
+
+    /// <summary>Vertical spring-damper suspension heave in metres.</summary>
+    public float SuspensionOffset { get; private set; }
+
+    /// <summary>Combined terrain + dynamic pitch for rendering.</summary>
+    public float TotalPitch => Pitch + BodyPitch;
+
+    /// <summary>Combined terrain + dynamic roll for rendering.</summary>
+    public float TotalRoll => Roll + BodyRoll;
+
+    private float _suspensionVelocity;
+    private float _lastGroundY;
+    private float _lastForwardSpeed;
+    private float _bumpPhase;
+
     /// <summary>Ground plane velocity in m/s.</summary>
     public Vector2 Velocity { get; set; }
 
@@ -129,11 +149,18 @@ public sealed class Vehicle(int id, VehicleKind kind)
     /// <summary>Places the vehicle on the ground at a point, at rest.</summary>
     public void Place(WorldMap map, Vector2 position, float yaw)
     {
-        Position = position.ToWorld(map.Terrain.HeightAt(position));
+        float groundY = map.Terrain.HeightAt(position);
+        Position = position.ToWorld(groundY);
         Yaw = yaw;
         Velocity = Vector2.Zero;
         Speed = 0f;
         Skid = 0f;
+        BodyPitch = 0f;
+        BodyRoll = 0f;
+        SuspensionOffset = 0f;
+        _suspensionVelocity = 0f;
+        _lastGroundY = groundY;
+        _lastForwardSpeed = 0f;
         AlignToGround(map, 1f);
     }
 
@@ -225,22 +252,92 @@ public sealed class Vehicle(int id, VehicleKind kind)
         }
 
         Speed = Vector2.Dot(Velocity, MathUtil.Forward(Yaw));
-        Position = resolved.ToWorld(map.Terrain.HeightAt(resolved));
+        float newGroundY = map.Terrain.HeightAt(resolved);
+        Position = resolved.ToWorld(newGroundY);
         WheelSpin += Speed / spec.WheelRadius * dt;
         Revs = MathUtil.Saturate((MathF.Abs(Speed) / spec.MaxSpeed * 0.75f) + (throttle * 0.25f));
         AlignToGround(map, MathUtil.Damp(10f, dt));
+        UpdateSuspension(dt, newGroundY, yawRate);
     }
 
     /// <summary>Kinematic move used by traffic: follows a lane, no slip.</summary>
     public void MoveKinematic(WorldMap map, Vector2 position, float yaw, float speed, float dt)
     {
-        Position = position.ToWorld(map.Terrain.HeightAt(position));
+        float prevYaw = Yaw;
+        float newGroundY = map.Terrain.HeightAt(position);
+        Position = position.ToWorld(newGroundY);
         Yaw = yaw;
         Speed = speed;
         Velocity = MathUtil.Forward(yaw) * speed;
         WheelSpin += speed / Spec.WheelRadius * dt;
         Revs = MathUtil.Saturate(MathF.Abs(speed) / Spec.MaxSpeed);
         AlignToGround(map, MathUtil.Damp(8f, dt));
+        if (dt > 0.0001f)
+        {
+            float yawRate = MathUtil.WrapAngle(yaw - prevYaw) / dt;
+            UpdateSuspension(dt, newGroundY, yawRate);
+        }
+        else
+        {
+            _lastGroundY = newGroundY;
+            _lastForwardSpeed = speed;
+        }
+    }
+
+    /// <summary>Spring-damper suspension heave and acceleration/cornering weight transfer.</summary>
+    private void UpdateSuspension(float dt, float groundY, float yawRate)
+    {
+        if (dt <= 0.0001f)
+        {
+            return;
+        }
+
+        // Tall utility vehicles (angkot, truk, bemo) lean more noticeably than low sedans.
+        float softness = Spec.Kind switch
+        {
+            VehicleKind.Angkot or VehicleKind.Truk or VehicleKind.Bemo or VehicleKind.TahuBulat or VehicleKind.Bakso => 1.35f,
+            VehicleKind.Bajaj or VehicleKind.Delman => 1.2f,
+            VehicleKind.Motor => 0.45f,
+            _ => 0.9f,
+        };
+
+        // Longitudinal weight transfer: braking dives the nose (-), acceleration squats (+).
+        float longAccel = Math.Clamp((Speed - _lastForwardSpeed) / dt, -14f, 14f);
+        _lastForwardSpeed = Speed;
+        float targetBodyPitch = Math.Clamp(longAccel * 0.0055f * softness, -0.075f, 0.065f);
+        if (Impact > 1f)
+        {
+            targetBodyPitch -= MathF.Min(Impact * 0.008f, 0.08f);
+            _suspensionVelocity -= MathF.Min(Impact * 0.14f, 0.65f);
+        }
+
+        // Lateral weight transfer: cornering rolls the body outward.
+        float latAccel = Math.Clamp(Speed * yawRate, -12f, 12f);
+        float targetBodyRoll = Spec.Kind == VehicleKind.Motor
+            ? 0f
+            : Math.Clamp(-latAccel * 0.0085f * softness, -0.11f, 0.11f);
+
+        float blend = MathUtil.Damp(9f, dt);
+        BodyPitch += (targetBodyPitch - BodyPitch) * blend;
+        BodyRoll += (targetBodyRoll - BodyRoll) * blend;
+
+        // Vertical spring-damper driven by terrain elevation steps and off-road roughness.
+        float groundStep = Math.Clamp(groundY - _lastGroundY, -0.35f, 0.35f);
+        _lastGroundY = groundY;
+        _suspensionVelocity -= groundStep * 2.2f;
+
+        if (!IsOnRoad && MathF.Abs(Speed) > 0.8f)
+        {
+            _bumpPhase += MathF.Abs(Speed) * dt * 2.4f;
+            float ripple = MathF.Sin(_bumpPhase) * MathF.Min(MathF.Abs(Speed) * 0.025f, 0.22f);
+            _suspensionVelocity += ripple * dt * 18f;
+        }
+
+        const float springK = 52f;
+        const float damperC = 9.5f;
+        float accelY = (-springK * SuspensionOffset) - (damperC * _suspensionVelocity);
+        _suspensionVelocity += accelY * dt;
+        SuspensionOffset = Math.Clamp(SuspensionOffset + (_suspensionVelocity * dt), -0.14f, 0.14f);
     }
 
     private void AlignToGround(WorldMap map, float blend)

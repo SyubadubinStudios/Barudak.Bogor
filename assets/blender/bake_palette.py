@@ -30,17 +30,22 @@ def linear_to_srgb(c):
     return 12.92 * c if c <= 0.0031308 else 1.055 * (c ** (1 / 2.4)) - 0.055
 
 
-def colour_of(material):
-    """Base colour of a flat material; emissive ones contribute their glow colour instead."""
+def material_props(material):
+    """Extract (base_rgb, roughness, metallic, emit_rgb) from a Principled BSDF material."""
     bsdf = next((n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
     if bsdf is None:
-        return (0.8, 0.8, 0.8)
-    base = bsdf.inputs["Base Color"].default_value[:3]
-    emission = bsdf.inputs["Emission Color"].default_value[:3]
-    strength = bsdf.inputs["Emission Strength"].default_value
+        return ((0.8, 0.8, 0.8), 0.8, 0.0, (0.0, 0.0, 0.0))
+    base = tuple(bsdf.inputs["Base Color"].default_value[:3])
+    rough = float(bsdf.inputs["Roughness"].default_value)
+    metal = float(bsdf.inputs["Metallic"].default_value)
+    emission = tuple(bsdf.inputs["Emission Color"].default_value[:3])
+    strength = float(bsdf.inputs["Emission Strength"].default_value)
     if strength > 0.0 and max(emission) > 0.0:
-        return tuple(min(1.0, max(b, e)) for b, e in zip(base, emission))
-    return base
+        emit = tuple(min(1.0, e * min(strength, 1.0)) for e in emission)
+        base = tuple(min(1.0, max(b, e)) for b, e in zip(base, emit))
+    else:
+        emit = (0.0, 0.0, 0.0)
+    return (base, rough, metal, emit)
 
 
 def has_texture(obj):
@@ -55,43 +60,84 @@ def bake(path):
         return None
 
     before = sum(len(o.data.materials) for o in meshes)
-    colours = []
+    swatches = []
 
-    def swatch(colour):
-        key = tuple(round(c, 3) for c in colour)
-        if key not in colours:
-            colours.append(key)
-        return colours.index(key)
+    def swatch(props):
+        base, rough, metal, emit = props
+        key = (
+            tuple(round(c, 3) for c in base),
+            round(rough, 2),
+            round(metal, 2),
+            tuple(round(c, 3) for c in emit),
+        )
+        if key not in swatches:
+            swatches.append(key)
+        return swatches.index(key)
 
+    default_props = ((0.8, 0.8, 0.8), 0.8, 0.0, (0.0, 0.0, 0.0))
     assignments = []
     for obj in meshes:
-        slots = [swatch(colour_of(m)) if m else swatch((0.8, 0.8, 0.8)) for m in obj.data.materials]
-        assignments.append((obj, slots or [swatch((0.8, 0.8, 0.8))]))
-    if len(colours) > GRID * GRID:
-        raise RuntimeError(f"{os.path.basename(path)} uses {len(colours)} colours; raise GRID")
+        slots = [swatch(material_props(m)) if m else swatch(default_props) for m in obj.data.materials]
+        assignments.append((obj, slots or [swatch(default_props)]))
+    if len(swatches) > GRID * GRID:
+        raise RuntimeError(f"{os.path.basename(path)} uses {len(swatches)} swatches; raise GRID")
 
-    image = bpy.data.images.new("palette", SIZE, SIZE, alpha=False)
-    pixels = [0.0] * (SIZE * SIZE * 4)
-    for index, colour in enumerate(colours):
+    has_emit = any(max(s[3]) > 0.0 for s in swatches)
+
+    color_img = bpy.data.images.new("palette", SIZE, SIZE, alpha=False)
+    mr_img = bpy.data.images.new("palette_mr", SIZE, SIZE, alpha=False)
+    mr_img.colorspace_settings.name = "Non-Color"
+    emit_img = bpy.data.images.new("palette_emit", SIZE, SIZE, alpha=False) if has_emit else None
+
+    color_px = [0.0] * (SIZE * SIZE * 4)
+    mr_px = [0.0] * (SIZE * SIZE * 4)
+    emit_px = [0.0] * (SIZE * SIZE * 4) if has_emit else None
+
+    for index, (base, rough, metal, emit) in enumerate(swatches):
         cx, cy = index % GRID, index // GRID
-        srgb = [linear_to_srgb(c) for c in colour]
+        srgb = [linear_to_srgb(c) for c in base]
+        emit_srgb = [linear_to_srgb(c) for c in emit]
         for y in range(cy * SWATCH, (cy + 1) * SWATCH):
             for x in range(cx * SWATCH, (cx + 1) * SWATCH):
                 i = (y * SIZE + x) * 4
-                pixels[i:i + 4] = [srgb[0], srgb[1], srgb[2], 1.0]
-    image.pixels = pixels
-    image.pack()
+                color_px[i:i + 4] = [srgb[0], srgb[1], srgb[2], 1.0]
+                # glTF metallicRoughnessTexture: R=unused/AO, G=Roughness, B=Metallic
+                mr_px[i:i + 4] = [1.0, rough, metal, 1.0]
+                if emit_px is not None:
+                    emit_px[i:i + 4] = [emit_srgb[0], emit_srgb[1], emit_srgb[2], 1.0]
+
+    color_img.pixels = color_px
+    color_img.pack()
+    mr_img.pixels = mr_px
+    mr_img.pack()
+    if emit_img is not None and emit_px is not None:
+        emit_img.pixels = emit_px
+        emit_img.pack()
 
     palette = bpy.data.materials.new("palette")
     palette.use_nodes = True
     tree = palette.node_tree
     bsdf = next(n for n in tree.nodes if n.type == "BSDF_PRINCIPLED")
-    texture = tree.nodes.new("ShaderNodeTexImage")
-    texture.image = image
-    texture.interpolation = "Closest"
-    tree.links.new(texture.outputs["Color"], bsdf.inputs["Base Color"])
-    bsdf.inputs["Roughness"].default_value = 0.8
-    bsdf.inputs["Metallic"].default_value = 0.0
+
+    color_tex = tree.nodes.new("ShaderNodeTexImage")
+    color_tex.image = color_img
+    color_tex.interpolation = "Closest"
+    tree.links.new(color_tex.outputs["Color"], bsdf.inputs["Base Color"])
+
+    mr_tex = tree.nodes.new("ShaderNodeTexImage")
+    mr_tex.image = mr_img
+    mr_tex.interpolation = "Closest"
+    sep = tree.nodes.new("ShaderNodeSeparateColor")
+    tree.links.new(mr_tex.outputs["Color"], sep.inputs["Color"])
+    tree.links.new(sep.outputs["Green"], bsdf.inputs["Roughness"])
+    tree.links.new(sep.outputs["Blue"], bsdf.inputs["Metallic"])
+
+    if emit_img is not None:
+        emit_tex = tree.nodes.new("ShaderNodeTexImage")
+        emit_tex.image = emit_img
+        emit_tex.interpolation = "Closest"
+        tree.links.new(emit_tex.outputs["Color"], bsdf.inputs["Emission Color"])
+        bsdf.inputs["Emission Strength"].default_value = 2.2
 
     for obj, slots in assignments:
         mesh = obj.data
@@ -110,7 +156,7 @@ def bake(path):
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_image_format="AUTO",
                               export_animations=False, export_yup=True)
-    return before, len(meshes), len(colours)
+    return before, len(meshes), len(swatches)
 
 
 names = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sorted(f[:-4] for f in os.listdir(MODELS) if f.endswith(".glb"))

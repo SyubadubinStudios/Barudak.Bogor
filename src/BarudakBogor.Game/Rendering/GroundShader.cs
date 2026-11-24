@@ -34,41 +34,51 @@ internal static class GroundShader
             let road = context.custom0.y;
             let rain = context.custom0.z;
 
-            // Layers: broad patches, clumps a stride across, and grain underfoot.
-            let broad = bb_noise(p * 0.07);
-            let clump = bb_noise(p * 0.55);
-            let grain = bb_noise(p * 4.5);
+            // Layers: broad patches, clumps a stride across, fine grit, and asphalt aggregate.
+            let broad = bb_noise(p * 0.065);
+            let clump = bb_noise(p * 0.52);
+            let grain = bb_noise(p * 4.8);
+            let micro = bb_noise(p * 14.0);
             let green = clamp((surface.albedo.g - max(surface.albedo.r, surface.albedo.b)) * 6.0, 0.0, 1.0);
-            let ground_tone = (0.86 + broad * 0.2) * (0.9 + clump * 0.2) * (0.94 + grain * 0.12);
-            let road_tone = 0.95 + grain * 0.1;
-            out.albedo = surface.albedo * mix(ground_tone, road_tone, road);
-            // Grass grows in darker tufts; bare earth just varies.
-            out.albedo = mix(out.albedo, out.albedo * vec3<f32>(0.82, 1.08, 0.78), green * clump * 0.5 * (1.0 - road));
-            out.roughness = clamp(surface.roughness + (grain - 0.5) * 0.12, 0.04, 1.0);
+            let ground_tone = (0.85 + broad * 0.22) * (0.89 + clump * 0.22) * (0.93 + grain * 0.14);
 
-            // Damp ground darkens before any water stands on it.
-            out.albedo = out.albedo * (1.0 - wet * 0.22 * (1.0 - road));
+            // Road surface: subtle aggregate variation + weathered tar cracks.
+            let crack_field = abs(bb_noise(p * 0.35 + vec2<f32>(3.7, 9.1)) - 0.5);
+            let crack = smoothstep(0.018, 0.0, crack_field) * 0.18;
+            let road_tone = (0.92 + broad * 0.1 + grain * 0.08 + micro * 0.05) * (1.0 - crack);
+
+            out.albedo = surface.albedo * mix(ground_tone, road_tone, road);
+            // Grass grows in richer tropical tufts; bare earth varies subtly.
+            out.albedo = mix(out.albedo, out.albedo * vec3<f32>(0.78, 1.1, 0.74), green * clump * 0.55 * (1.0 - road));
+
+            // Keep dry surfaces genuinely matte so SSR never mirrors on dry grass or dry concrete.
+            let dry_rough = mix(0.95, 0.92, road);
+            let wet_rough = mix(0.68, 0.26, road);
+            out.roughness = clamp(mix(dry_rough, wet_rough, wet) + (grain - 0.5) * 0.09, 0.05, 1.0);
+
+            // Damp ground and asphalt darken realistically when wet.
+            out.albedo = out.albedo * (1.0 - wet * mix(0.24, 0.32, road));
 
             // Puddles gather in the low patches of a second, slower field, on level ground only.
             let hollow = bb_noise(p * 0.19 + vec2<f32>(17.0, 5.0)) * 0.7 + bb_noise(p * 0.61) * 0.3;
             let level = clamp((context.world_normal.y - 0.985) * 80.0, 0.0, 1.0);
-            let edge = 1.0 - wet * mix(0.42, 0.5, road);
-            let puddle = smoothstep(edge, edge + 0.07, hollow) * level * step(0.05, wet);
+            let edge = 1.0 - wet * mix(0.38, 0.48, road);
+            let puddle = smoothstep(edge, edge + 0.06, hollow) * level * smoothstep(0.06, 0.18, wet);
             if (puddle > 0.001) {
                 var normal = vec3<f32>(0.0, 1.0, 0.0);
                 if (rain > 0.05) {
                     // Raindrop rings: each cell of a grid drops one ring that widens and fades.
-                    let cell = floor(p * 1.6);
-                    let local = fract(p * 1.6) - 0.5;
-                    let phase = fract(context.time * 1.3 + bb_hash(cell) * 7.0);
+                    let cell = floor(p * 1.7);
+                    let local = fract(p * 1.7) - 0.5;
+                    let phase = fract(context.time * 1.45 + bb_hash(cell) * 7.0);
                     let centre = (vec2<f32>(bb_hash(cell + 3.1), bb_hash(cell + 7.7)) - 0.5) * 0.5;
                     let d = length(local - centre);
-                    let ring = sin((d - phase * 0.45) * 60.0) * smoothstep(0.08, 0.0, abs(d - phase * 0.45)) * (1.0 - phase);
+                    let ring = sin((d - phase * 0.45) * 62.0) * smoothstep(0.08, 0.0, abs(d - phase * 0.45)) * (1.0 - phase);
                     let away = normalize(local - centre + vec2<f32>(0.0001, 0.0));
-                    normal = normalize(vec3<f32>(away.x * ring * rain * 0.6, 1.0, away.y * ring * rain * 0.6));
+                    normal = normalize(vec3<f32>(away.x * ring * rain * 0.65, 1.0, away.y * ring * rain * 0.65));
                 }
 
-                out.albedo = mix(out.albedo, out.albedo * 0.38, puddle);
+                out.albedo = mix(out.albedo, out.albedo * 0.36, puddle);
                 out.roughness = mix(out.roughness, 0.03, puddle);
                 out.normal = normalize(mix(out.normal, normal, puddle));
             }

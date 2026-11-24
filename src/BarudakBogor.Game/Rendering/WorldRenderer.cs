@@ -45,13 +45,15 @@ public sealed class WorldRenderer : IDisposable
     private float _lastGlow = -1f;
     private bool _disposed;
 
+    public static string ArtDirectory { get; set; } = Path.Combine(AppContext.BaseDirectory, "Assets", "Art");
+
     public WorldRenderer(Scene scene, WorldMap map, ModelLibrary models)
     {
         _scene = scene;
         _map = map;
         _models = models;
         _textures = new WorldTextures(scene);
-        string poster = Path.Combine(AppContext.BaseDirectory, "Assets", "Art", "billboard_bandrek.jpg");
+        string poster = Path.Combine(ArtDirectory, "billboard_bandrek.jpg");
         if (File.Exists(poster))
         {
             _billboard = scene.CreateMaterial(MaterialOptions.Pbr(Vector4.One, 0f, 0.7f) with
@@ -317,6 +319,7 @@ public sealed class WorldRenderer : IDisposable
         AddMesh(loaded, data.RoadToll, _textures.RoadToll, castShadow: false);
         AddMesh(loaded, data.RoadGang, _textures.RoadGang, castShadow: false);
         AddMesh(loaded, data.Asphalt, _textures.Asphalt, castShadow: false);
+        AddMesh(loaded, data.Sidewalks, _textures.Sidewalk, castShadow: false);
         AddMesh(loaded, data.Rail, _textures.Rail, castShadow: false);
         AddMesh(loaded, data.Buildings, _textures.Buildings, castShadow: true);
         AddMesh(loaded, data.Water, _textures.Water, castShadow: false);

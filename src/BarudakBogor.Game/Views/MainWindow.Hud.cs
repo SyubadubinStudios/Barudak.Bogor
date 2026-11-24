@@ -10,7 +10,7 @@ using BarudakBogor.Missions;
 
 namespace BarudakBogor.Game.Views;
 
-public partial class MainWindow
+public partial class MainView
 {
     private readonly List<(Border Panel, float Remaining)> _toasts = [];
     private float _bannerTimer;

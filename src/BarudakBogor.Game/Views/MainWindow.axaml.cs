@@ -23,7 +23,7 @@ namespace BarudakBogor.Game.Views;
 /// then let the renderers and the HUD show the result. All game rules live in the core
 /// library; this class only translates between the player, the simulation and the screen.
 /// </summary>
-public partial class MainWindow : Window
+public partial class MainView : UserControl
 {
     private enum Screen
     {
@@ -57,9 +57,10 @@ public partial class MainWindow : Window
     private InputState? _scriptedInput;
     private double _gameMs;
     private bool _closed;
+    private bool _loaded;
     private double _viewMs;
 
-    public MainWindow()
+    public MainView()
     {
         InitializeComponent();
         Loc.Language = _settings.Language;
@@ -73,9 +74,6 @@ public partial class MainWindow : Window
             _looking = false;
             e.Pointer.Capture(null);
         };
-        // Releasing every key avoids a stuck throttle when the window loses focus.
-        Deactivated += (_, _) => _down.Clear();
-        Closed += (_, _) => Shutdown();
 
         // Frames are pumped from the display's refresh; see PumpFrame. (A DispatcherTimer ticks on
         // the 15.6 ms Windows timer grid, which rounds a 20 ms frame up to 31 ms.)
@@ -83,13 +81,38 @@ public partial class MainWindow : Window
         Viewport.RenderFailed += (_, message) => LoadingText.Text = message;
 
         WireMenus();
-        Opened += async (_, _) => await LoadWorldAsync();
+        WireTouchControls();
+        AttachedToVisualTree += OnAttached;
+        DetachedFromVisualTree += (_, _) => Shutdown();
+    }
+
+    private async void OnAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is Window window)
+        {
+            window.Deactivated += (_, _) => _down.Clear();
+            window.Closed += (_, _) => Shutdown();
+        }
+
+        if (!_loaded)
+        {
+            _loaded = true;
+            await LoadWorldAsync();
+        }
+    }
+
+    private void RequestClose()
+    {
+        if (TopLevel.GetTopLevel(this) is Window window)
+        {
+            window.Close();
+        }
     }
 
     private bool Playing => _screen == Screen.Playing;
 
     /// <summary>True for a <c>--capture</c> tour or a <c>--bench</c> run: nothing is written to the player's files.</summary>
-    private static bool Scripted => Program.CaptureDirectory is not null || Program.BenchFile is not null;
+    private static bool Scripted => LaunchOptions.Scripted;
 
     // ------------------------------------------------------------------ start-up
 
@@ -98,9 +121,10 @@ public partial class MainWindow : Window
         LoadingText.Text = Ui.Loading.Text;
         LoadingTagline.Text = Loc.Tagline.Text;
         LoadingCredit.Text = Loc.CreditLine.Text.ToUpperInvariant();
-        using (Stream icon = Avalonia.Platform.AssetLoader.Open(new Uri("avares://BarudakBogor/Assets/Art/icon_256.png")))
+        if (TopLevel.GetTopLevel(this) is Window window)
         {
-            Icon = new WindowIcon(icon);
+            using Stream icon = Avalonia.Platform.AssetLoader.Open(new Uri("avares://BarudakBogor/Assets/Art/icon_256.png"));
+            window.Icon = new WindowIcon(icon);
         }
 
         // The livery stripe sweeps across the bar until the city is ready.
@@ -130,21 +154,21 @@ public partial class MainWindow : Window
         _world.LoadNow(_session!.Player.Ground);
 
         Viewport.Scene = _scene;
-        RequestAnimationFrame(PumpFrame);
+        TopLevel.GetTopLevel(this)?.RequestAnimationFrame(PumpFrame);
         Viewport.Camera = _camera.Node;
         ShowTitle();
         // Cross-fade from the painted Bogor to the living one.
-        await Task.Delay(Program.CaptureDirectory is null && Program.BenchFile is null ? 900 : 50);
+        await Task.Delay(!LaunchOptions.Scripted ? 900 : 50);
         LoadingScreen.Opacity = 0;
         LoadingScreen.IsHitTestVisible = false;
         await Task.Delay(750);
         stripe.Stop();
         LoadingScreen.IsVisible = false;
-        if (Program.BenchFile is { } report)
+        if (LaunchOptions.BenchFile is { } report)
         {
             StartBench(report);
         }
-        else if (Program.CaptureDirectory is { } directory)
+        else if (LaunchOptions.CaptureDirectory is { } directory)
         {
             StartCapture(directory);
         }
@@ -174,7 +198,7 @@ public partial class MainWindow : Window
 
         // Ask for the next refresh before doing the work, so a frame that finishes in time is not
         // made to wait an extra refresh for its successor to be scheduled.
-        RequestAnimationFrame(PumpFrame);
+        TopLevel.GetTopLevel(this)?.RequestAnimationFrame(PumpFrame);
         long started = System.Diagnostics.Stopwatch.GetTimestamp();
         double frameMs = _lastPump == 0 ? 0 : System.Diagnostics.Stopwatch.GetElapsedTime(_lastPump, started).TotalMilliseconds;
         _lastPump = started;
@@ -290,6 +314,11 @@ public partial class MainWindow : Window
 
     private void Shutdown()
     {
+        if (_closed)
+        {
+            return;
+        }
+
         _closed = true;
         if (_session is not null && _screen is Screen.Playing or Screen.Paused)
         {
@@ -431,10 +460,12 @@ public partial class MainWindow : Window
                 InputState input = _scriptedInput ?? ReadInput(session, camera);
                 if (_scriptedInput is null)
                 {
+                    ApplyTouchInput(ref input, session);
                     ApplyGamepad(ref input, session, camera, dt);
                     HandleGamepadButtons(session, camera);
                 }
 
+                UpdateTouchOverlay(session);
                 HandleHotkeys(session, camera);
                 if (_screen != Screen.Playing)
                 {

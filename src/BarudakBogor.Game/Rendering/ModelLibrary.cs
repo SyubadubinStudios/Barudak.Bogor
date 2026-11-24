@@ -32,7 +32,7 @@ public sealed class ModelLibrary
         _holder.Visible = false;
     }
 
-    public static string ModelDirectory => Path.Combine(AppContext.BaseDirectory, "Assets", "Models");
+    public static string ModelDirectory { get; set; } = Path.Combine(AppContext.BaseDirectory, "Assets", "Models");
 
     private Node? Prototype(string name)
     {

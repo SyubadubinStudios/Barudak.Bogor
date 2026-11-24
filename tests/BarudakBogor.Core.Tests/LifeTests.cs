@@ -98,4 +98,49 @@ public sealed class LifeTests(WorldFixture fixture)
         // Not a running commentary: a few lines in a minute and a half at most.
         Assert.True(chatter.Length <= 5, $"{chatter.Length} lines in 90 s");
     }
+
+    [Fact]
+    public void HeavyRainThinsCrowdTriggersShelteringAndLights()
+    {
+        GameSession clear = SessionAt(12.5f, WeatherKind.Cerah);
+        Run(clear, 12f);
+        GameSession storm = SessionAt(12.5f, WeatherKind.BadaiPetir);
+        Run(storm, 12f);
+
+        Assert.True(storm.Population.Pedestrians.Count < clear.Population.Pedestrians.Count,
+            $"storm crowd ({storm.Population.Pedestrians.Count}) should be smaller than clear crowd ({clear.Population.Pedestrians.Count})");
+        Assert.Contains(storm.Population.Pedestrians, p => p.State == PedestrianState.Shelter || p.Umbrella);
+        Assert.Contains(storm.Population.Traffic, v => v.Spec.Motorised && v.LightsOn);
+        Assert.True(Population.CrowdFactor(7f, LandUse.Pasar) > Population.CrowdFactor(23f, LandUse.Pasar));
+        Assert.True(Population.WeatherRoleFactor(NpcKind.Badut, WeatherKind.BadaiPetir) == 0f);
+    }
+
+    [Fact]
+    public void VehicleSuspensionRespondsToBrakingAndCornering()
+    {
+        Vehicle angkot = new(1, VehicleKind.Angkot);
+        angkot.Place(_map, _map[PoiId.TuguKujang].RoadPoint, 0f);
+
+        // Accelerate straight, then steer and brake hard.
+        for (int i = 0; i < 45; i++)
+        {
+            angkot.Update(Step, new DriveInput(1f, 0f, 0f, false), _map, 0f);
+        }
+
+        Assert.True(angkot.BodyPitch > 0.005f, $"expected squat on acceleration, got {angkot.BodyPitch}");
+
+        for (int i = 0; i < 20; i++)
+        {
+            angkot.Update(Step, new DriveInput(0.6f, 0f, 1f, false), _map, 0f);
+        }
+
+        Assert.True(MathF.Abs(angkot.BodyRoll) > 0.005f, $"expected body roll while cornering, got {angkot.BodyRoll}");
+
+        for (int i = 0; i < 15; i++)
+        {
+            angkot.Update(Step, new DriveInput(0f, 1f, 0f, false), _map, 0f);
+        }
+
+        Assert.True(angkot.BodyPitch < -0.005f, $"expected nose-dive under braking, got {angkot.BodyPitch}");
+    }
 }

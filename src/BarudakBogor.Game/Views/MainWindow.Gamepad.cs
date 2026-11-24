@@ -15,7 +15,7 @@ namespace BarudakBogor.Game.Views;
 /// this file polls the engine, turns the right stick into camera movement and handles the
 /// buttons that belong to the window rather than to the game: pause, map, camera view.
 /// </summary>
-public partial class MainWindow
+public partial class MainView
 {
     private Gamepads? _pads;
     private bool _padsFailed;
@@ -25,7 +25,7 @@ public partial class MainWindow
 
     private void PollGamepad()
     {
-        if (_padsFailed)
+        if (_padsFailed || OperatingSystem.IsAndroid())
         {
             return;
         }
